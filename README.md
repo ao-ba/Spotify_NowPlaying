@@ -20,7 +20,7 @@ To get started, you need to complete the initial Spotify authentication.
 Step 1: Initial Authentication Run the following command to start the container in interactive mode and follow the on-screen instructions to authorize your Spotify account:
 
 ```Bash
-docker compose run -it --service-ports dashboard
+docker compose run -it --rm dashboard
 ```
 Once the message "Success! '.spotifycache' has been created" appears, the setup is complete and the container will exit.
 
