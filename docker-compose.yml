@@ -1,0 +1,13 @@
+services:
+  dashboard:
+    build: .
+    container_name: dashboard
+    ports:
+      - "5000:5000"
+    environment:
+      - SPOTIPY_CLIENT_ID=<your_client_id>
+      - SPOTIPY_CLIENT_SECRET=<your_client_secret>
+      - SPOTIPY_REDIRECT_URI=<your_redirect_url>
+    volumes:
+      - .:/app
+    restart: always
