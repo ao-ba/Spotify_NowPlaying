@@ -11,7 +11,7 @@
         padding: 40px 20px;
         margin: 0;
       }
-      .wrapper {
+      #wrapper {
         max-width: 1100px;
         margin: 0 auto;
       }
@@ -199,10 +199,167 @@
       .copy-btn:hover {
         background: rgba(29, 185, 84, 0.1);
       }
+      #screenshot-menu-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-end;
+      }
+      #menu-trigger {
+        width: 50px;
+        height: 50px;
+	right: 30px;
+        border-radius: 50%;
+        background-color: #1DB954;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+      #menu-items {
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #menu-items.hidden { display: none; }
+      #menu-items button {
+        background: #282828;
+        color: white;
+        border: 1px solid #404040;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #menu-items button:hover { background: #3e3e3e; }
+      #toast {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background-color: #1DB954;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        z-index: 9999;
+      }
+      #toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+      .hidden { display: none !important; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
   <body>
     <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const trigger = document.getElementById('menu-trigger');
+        const menu = document.getElementById('menu-items');
+        if (trigger && menu) {
+          trigger.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+          });
+        }
+      });
+
+      async function captureElement(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        try {
+          const fullCanvas = await html2canvas(element, {
+            backgroundColor: '#121212',
+            useCORS: true,
+            scale: 2
+          });
+
+          const padding = 40;
+          const maxWidth = 800;
+          let finalWidth = fullCanvas.width + (padding * 2);
+          let finalHeight = fullCanvas.height + (padding * 2);
+          let displayScale = 1;
+          if (finalWidth > maxWidth) {
+            displayScale = maxWidth / finalWidth;
+            finalWidth = maxWidth;
+            finalHeight = finalHeight * displayScale;
+          }
+
+          const finalCanvas = document.createElement('canvas');
+          finalCanvas.width = finalWidth;
+          finalCanvas.height = finalHeight;
+
+          const ctx = finalCanvas.getContext('2d');
+          ctx.fillStyle = '#121212'; 
+          ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+          const drawWidth = fullCanvas.width * displayScale;
+          const drawHeight = fullCanvas.height * displayScale;
+          const offsetX = (finalWidth - drawWidth) / 2;
+          const offsetY = (finalHeight - drawHeight) / 2;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(fullCanvas, offsetX, offsetY, drawWidth, drawHeight);
+          finalCanvas.toBlob(async (blob) => {
+            if (!blob) return;
+            try {
+              const data = [new ClipboardItem({ 'image/png': blob })];
+              await navigator.clipboard.write(data);
+              document.getElementById('menu-items').classList.add('hidden');
+              showToast('Copied.');
+            } catch (err) {
+              console.error(err);
+              showToast('Failed.');
+            }
+          }, 'image/png');
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      async function captureHistoryThreeRows(containerId) {
+        const original = document.getElementById(containerId);
+        if (!original) return;
+        const firstCard = original.querySelector('.card');
+        if (!firstCard) return;
+
+        const cardHeight = firstCard.offsetHeight;
+        const style = window.getComputedStyle(original);
+        const rowGap = parseFloat(style.rowGap) || 0;
+        const targetHeight = (cardHeight * 3) + (rowGap * 2) + parseFloat(style.paddingTop);
+
+        const tempId = 'temp-capture-' + Date.now();
+        const clone = original.cloneNode(true);
+        clone.id = tempId;
+        clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+        Object.assign(clone.style, {
+          position: 'absolute',
+          top: '-9999px',
+          left: '0',
+          width: original.offsetWidth + 'px',
+          height: targetHeight + 'px',
+          overflow: 'hidden',
+          visibility: 'visible',
+          webkitMaskImage: 'linear-gradient(to bottom, black 65%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black 65%, transparent 100%)'
+        });
+        document.body.appendChild(clone);
+        try {
+          await captureElement(tempId); 
+          showToast('Copied.');
+        } catch (err) {
+              console.error(err);
+              showToast('Failed.');
+        } finally {
+          document.body.removeChild(clone);
+        }
+      }
       async function copyToClipboard(song, artist, album, url, btn) {
         const textToCopy = `${song}(${album}) - ${artist}\n${url}`;
         try {
@@ -211,7 +368,6 @@
           btn.innerText = "コピー完了";
           btn.style.background = "#1db954";
           btn.style.color = "black";
-
           setTimeout(() => {
             btn.innerText = originalText;
             btn.style.background = "transparent";
@@ -221,24 +377,44 @@
           console.error(err);
         }
       }
+      function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2500);
+      }
     </script>
-    <div class="wrapper">
+    <div id="toast">Copied.</div>
+    <div id="screenshot-menu-container">
+      <button id="menu-trigger">📸</button>
+      <div id="menu-items" class="hidden">
+        {% if current_track %}
+        <button onclick="captureElement('now-playing-capture')">Capture Playing</button>
+	{% endif %}
+        <button onclick="captureHistoryThreeRows('wrapper')">Capture History</button>
+      </div>
+    </div>
+    <div id="wrapper">
       {% if current_track %}
-      <div class="badge">NOW PLAYING</div>
-      <div class="now-playing-container">
-        <img src="{{ current_track.image_url }}" class="now-playing-img" />
-        <div class="now-playing-info">
-          <h1>{{ current_track.name }}</h1>
-          <p>{{ current_track.album }}</p>
-          <p>{{ current_track.artist }}</p>
-          <div class="button-group">
-            <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
-            <button
-              class="copy-btn"
-            onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
-            >
-              リンクをコピー
-            </button>
+      <div id="now-playing-capture">
+        <div class="badge">NOW PLAYING</div>
+        <div class="now-playing-container">
+          <img src="{{ current_track.image_url }}" class="now-playing-img" />
+          <div class="now-playing-info">
+            <h1>{{ current_track.name }}</h1>
+            <p>{{ current_track.album }}</p>
+            <p>{{ current_track.artist }}</p>
+            <div class="button-group">
+              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
+              <button
+                class="copy-btn"
+              onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
+              >
+                リンクをコピー
+              </button>
+            </div>
           </div>
         </div>
       </div>
