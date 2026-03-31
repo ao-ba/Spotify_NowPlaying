@@ -361,7 +361,7 @@
         }
       }
       async function copyToClipboard(song, artist, album, url, btn) {
-        const textToCopy = `${song}(${album}) - ${artist}\n${url}`;
+        const textToCopy = `${song} (${album}) - ${artist}\n${url}`;
         try {
           await navigator.clipboard.writeText(textToCopy);
           const originalText = btn.innerText;
