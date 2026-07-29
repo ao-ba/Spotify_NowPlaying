@@ -1,6 +1,7 @@
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import spotipy
@@ -115,8 +116,13 @@ def fetch_spotify_data():
     for attempt in range(SPOTIFY_API_RETRIES):
         try:
             client = create_spotify_client(force_recreate_auth=attempt > 0)
-            current_track_raw = client.current_user_playing_track()
-            history = client.current_user_recently_played(limit=50)
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                future_track = executor.submit(client.current_user_playing_track)
+                future_history = executor.submit(
+                    client.current_user_recently_played, limit=50
+                )
+                current_track_raw = future_track.result()
+                history = future_history.result()
             return current_track_raw, history
         except Exception as error:
             last_error = error
