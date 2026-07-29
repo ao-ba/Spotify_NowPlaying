@@ -1,4 +1,6 @@
 import sys
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 import spotipy
@@ -14,7 +16,29 @@ SPOTIFY_SCOPE = "user-read-currently-playing user-read-recently-played playlist-
 SPOTIFY_CACHE_PATH = ".spotifycache"
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
+CACHE_TTL_SECONDS = 30
 
+
+class _TTLCache:
+    def __init__(self, ttl: float):
+        self._ttl = ttl
+        self._lock = threading.Lock()
+        self._value = None
+        self._expires_at = 0.0
+
+    def get(self):
+        with self._lock:
+            if self._value is not None and time.monotonic() < self._expires_at:
+                return self._value
+        return None
+
+    def set(self, value):
+        with self._lock:
+            self._value = value
+            self._expires_at = time.monotonic() + self._ttl
+
+
+_spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
 auth_manager = None
 
 
