@@ -144,13 +144,18 @@ def init():
 
 
 def get_history():
-    try:
-        current_track_raw, history = fetch_spotify_data()
-    except RuntimeError as error:
-        return f"Authentication Error: {error}", 401
-    except Exception as error:
-        status_code = 503 if should_retry_spotify_error(error) else 500
-        return f"Spotify API Error: {error}", status_code
+    cached = _spotify_cache.get()
+    if cached is not None:
+        current_track_raw, history = cached
+    else:
+        try:
+            current_track_raw, history = fetch_spotify_data()
+        except RuntimeError as error:
+            return f"Authentication Error: {error}", 401
+        except Exception as error:
+            status_code = 503 if should_retry_spotify_error(error) else 500
+            return f"Spotify API Error: {error}", status_code
+        _spotify_cache.set((current_track_raw, history))
 
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):
