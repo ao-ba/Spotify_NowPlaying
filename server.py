@@ -80,13 +80,12 @@ def ensure_auth_manager(interactive=False, force_recreate=False):
         auth_manager.get_access_token(code, as_dict=False)
         print("\n" + "*" * 60)
         print(" Authentication Success. '.spotifycache' has been created.")
-        print(" Setup complete. The program will now exit.")
-        print(" Next time, it will start automatically without this step.")
-        print("*" * 60 + "\n")
-        sys.exit(0)
+        print(" Setup complete. The server will now start.")
+        print("*" + "*" * 59 + "\n")
+        return auth_manager
     except Exception as error:
         print(f"\nError: {error}")
-        sys.exit(1)
+        raise
 
 
 def create_spotify_client(force_recreate_auth=False):
@@ -141,6 +140,7 @@ def pick_album_image(images, preferred_index=0):
 
 def init():
     ensure_auth_manager(interactive=True)
+    return True
 
 
 def get_history():
