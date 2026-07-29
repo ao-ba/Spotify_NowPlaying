@@ -1,6 +1,6 @@
 services:
   dashboard:
-    #build: .
+    build: .
     image: ghcr.io/ao-ba/spotify_nowplaying:latest
     container_name: dashboard
     ports:
