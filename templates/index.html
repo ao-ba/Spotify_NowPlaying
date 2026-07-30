@@ -420,7 +420,12 @@
 
       document.addEventListener('DOMContentLoaded', function initSeekBarTicker() {
         const container = document.getElementById('progress-container');
-        if (!container) return;
+        if (!container) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 30000);
+          return;
+        }
 
         const currentEl = document.getElementById('progress-current-time');
         const fillEl = document.getElementById('progress-bar-fill');
@@ -429,9 +434,15 @@
         const durationMs = parseInt(container.dataset.durationMs || '0', 10);
         const isPlaying = container.dataset.isPlaying === 'true';
 
-        if (!isPlaying || durationMs <= 0) return;
+        if (!isPlaying || durationMs <= 0) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 30000);
+          return;
+        }
 
         const startTime = Date.now();
+        let reloadScheduled = false;
 
         function formatTime(ms) {
           const totalSecs = Math.max(0, Math.floor(ms / 1000));
@@ -450,6 +461,12 @@
 
           if (currentMs < durationMs) {
             requestAnimationFrame(update);
+          } else if (!reloadScheduled) {
+            reloadScheduled = true;
+            // 楽曲が終了（100%到達）してから 5 秒後に自動リロード
+            setTimeout(() => {
+              window.location.reload();
+            }, 5000);
           }
         }
 
