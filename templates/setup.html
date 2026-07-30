@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Dashboard - 初回認証セットアップ</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: #121212;
+        color: #ffffff;
+        margin: 0;
+        padding: 40px 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        box-sizing: border-box;
+      }
+      .setup-card {
+        background: #181818;
+        border: 1px solid #282828;
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 540px;
+        width: 100%;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .header h1 {
+        font-size: 1.8rem;
+        margin: 0 0 8px 0;
+        color: #ffffff;
+      }
+      .header p {
+        color: #b3b3b3;
+        font-size: 0.95rem;
+        margin: 0;
+      }
+      .step {
+        background: #242424;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #333;
+      }
+      .step-number {
+        display: inline-block;
+        background: #1db954;
+        color: #000;
+        font-weight: bold;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 24px;
+        font-size: 0.85rem;
+        margin-right: 8px;
+      }
+      .step-title {
+        font-weight: 600;
+        font-size: 1.05rem;
+        margin-bottom: 12px;
+      }
+      .btn-spotify {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #1db954;
+        color: #000000;
+        font-weight: bold;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .btn-spotify:hover {
+        background-color: #1ed760;
+        transform: scale(1.02);
+      }
+      .input-url {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid #444;
+        background-color: #121212;
+        color: #fff;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        margin-bottom: 16px;
+      }
+      .input-url:focus {
+        outline: none;
+        border-color: #1db954;
+      }
+      .btn-submit {
+        width: 100%;
+        background-color: #ffffff;
+        color: #000000;
+        font-weight: bold;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .btn-submit:hover {
+        background-color: #e6e6e6;
+        transform: scale(1.02);
+      }
+      .error-msg {
+        background: rgba(230, 57, 70, 0.15);
+        border: 1px solid #e63946;
+        color: #ff6b6b;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="setup-card">
+      <div class="header">
+        <h1>🎵 Spotify Dashboard</h1>
+        <p>初回認証セットアップ</p>
+      </div>
+
+      {% if error %}
+      <div class="error-msg">⚠️ {{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/setup">
+        {% if requires_pin %}
+        <div class="step">
+          <div class="step-title">
+            <span class="step-number">🔒</span> セキュリティ PIN の入力
+          </div>
+          <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
+            環境変数 <code>SETUP_PIN</code> で設定された PIN コードを入力してください。
+          </p>
+          <input
+            type="password"
+            name="pin"
+            class="input-url"
+            placeholder="PIN コードを入力"
+            required
+          />
+        </div>
+        {% endif %}
+
+        <div class="step">
+          <div class="step-title">
+            <span class="step-number">1</span> Spotify アカウントの認可
+          </div>
+          <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
+            下のボタンをクリックして Spotify の認証ページを開き、アクセスを許可してください。
+          </p>
+          <a href="{{ auth_url }}" target="_blank" class="btn-spotify">
+            Spotify で認証する ↗
+          </a>
+        </div>
+
+        <div class="step">
+          <div class="step-title">
+            <span class="step-number">2</span> リダイレクト URL の貼り付け
+          </div>
+          <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
+            認可後、ブラウザのアドレスバーに表示された URL（例: https://.../callback?code=...）をコピーして以下に貼り付けてください。
+          </p>
+          <input
+            type="text"
+            name="response_url"
+            class="input-url"
+            placeholder="https://127.0.0.1/callback?code=AQ..."
+            required
+          />
+          <button type="submit" class="btn-submit">
+            認証を完了してキャッシュを保存
+          </button>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>
