@@ -1,11 +1,9 @@
 import os
 import secrets
 import string
-import sys
-import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 import spotipy
 from flask import Flask, redirect, render_template, request, session, url_for
@@ -23,13 +21,13 @@ SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
 CACHE_TTL_SECONDS = 30
 
-# キャッシュ保存ディレクトリが存在しない場合は作成
+# キャッシュ保存用ディレクトリの確保
 cache_dir = os.path.dirname(SPOTIFY_CACHE_PATH)
 if cache_dir:
     os.makedirs(cache_dir, exist_ok=True)
 
 
-def _init_setup_pin():
+def _init_setup_pin() -> str:
     env_pin = os.environ.get("SETUP_PIN")
     if env_pin:
         print("[SECURITY] Using custom SETUP_PIN from environment variable.", flush=True)
@@ -52,29 +50,34 @@ SETUP_PIN = _init_setup_pin()
 
 
 class _TTLCache:
+    """インメモリの TTL キャッシュクラス"""
+
     def __init__(self, ttl: float):
         self._ttl = ttl
+        self._lock = threading.Lock() if "threading" in globals() else None
+        import threading
         self._lock = threading.Lock()
         self._value = None
         self._expires_at = 0.0
 
-    def get(self):
+    def get(self) -> Optional[Any]:
         with self._lock:
             if self._value is not None and time.monotonic() < self._expires_at:
                 return self._value
         return None
 
-    def set(self, value):
+    def set(self, value: Any) -> None:
+        import time
         with self._lock:
             self._value = value
             self._expires_at = time.monotonic() + self._ttl
 
 
+import time
 _spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
-auth_manager = None
 
 
-def create_auth_manager():
+def create_auth_manager() -> SpotifyOAuth:
     return SpotifyOAuth(
         scope=SPOTIFY_SCOPE,
         open_browser=False,
@@ -83,20 +86,15 @@ def create_auth_manager():
     )
 
 
-def ensure_auth_manager(force_recreate=False):
-    global auth_manager
-
-    if auth_manager is None or force_recreate:
-        auth_manager = create_auth_manager()
-
-    token_info = auth_manager.validate_token(auth_manager.get_cached_token())
+def ensure_auth_manager(force_recreate: bool = False) -> SpotifyOAuth:
+    auth_mgr = create_auth_manager()
+    token_info = auth_mgr.validate_token(auth_mgr.get_cached_token())
     if token_info:
-        return auth_manager
-
+        return auth_mgr
     raise RuntimeError("Spotify authentication is missing or expired.")
 
 
-def create_spotify_client(force_recreate_auth=False):
+def create_spotify_client(force_recreate_auth: bool = False) -> spotipy.Spotify:
     return spotipy.Spotify(
         auth_manager=ensure_auth_manager(force_recreate=force_recreate_auth),
         language="ja",
@@ -107,17 +105,15 @@ def create_spotify_client(force_recreate_auth=False):
     )
 
 
-def should_retry_spotify_error(error):
+def should_retry_spotify_error(error: Exception) -> bool:
     if isinstance(error, (Timeout, RequestException)):
         return True
-
     if isinstance(error, SpotifyException):
         return error.http_status in {401, 429, 500, 502, 503, 504}
-
     return False
 
 
-def fetch_spotify_data():
+def fetch_spotify_data() -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
     last_error = None
 
     for attempt in range(SPOTIFY_API_RETRIES):
@@ -138,15 +134,49 @@ def fetch_spotify_data():
             raise last_error
 
 
-def pick_album_image(images, preferred_index=0):
+def pick_album_image(images: List[Dict[str, Any]], preferred_index: int = 0) -> Optional[str]:
     if not images:
         return None
-
     safe_index = preferred_index if preferred_index < len(images) else 0
     return images[safe_index]["url"]
 
 
-def init():
+def format_track_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """現在再生中のトラックデータを画面表示用にフォーマット"""
+    return {
+        "name": item["name"],
+        "artist": ", ".join([artist["name"] for artist in item["artists"]]),
+        "album": item["album"]["name"],
+        "url": item["external_urls"]["spotify"],
+        "image_url": pick_album_image(item["album"]["images"]),
+    }
+
+
+def format_history_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """再生履歴データを JST 時刻変換および画面表示用にフォーマット"""
+    history_arr = []
+    jst = timezone(timedelta(hours=+9))
+
+    for value in items:
+        played_at_str = value["played_at"].replace("Z", "+00:00")
+        dt_utc = datetime.fromisoformat(played_at_str)
+        dt_jst = dt_utc.astimezone(jst)
+
+        track = value["track"]
+        history_arr.append({
+            "played_at": dt_jst.strftime("%Y-%m-%d %H:%M:%S"),
+            "name": track["name"],
+            "artist": ", ".join([artist["name"] for artist in track["artists"]]),
+            "album": track["album"]["name"],
+            "url": track["external_urls"]["spotify"],
+            "image_url": pick_album_image(track["album"]["images"], preferred_index=1),
+        })
+
+    history_arr.sort(key=lambda x: x["played_at"], reverse=True)
+    return history_arr
+
+
+def init() -> bool:
     sp_oauth = create_auth_manager()
     token = sp_oauth.validate_token(sp_oauth.get_cached_token())
     return token is not None
@@ -156,7 +186,7 @@ def init():
 def setup():
     sp_oauth = create_auth_manager()
 
-    # 1. すでに認証が完了している場合は 403 Forbidden でガード
+    # すでに認証が完了している場合は 403 Forbidden
     if sp_oauth.validate_token(sp_oauth.get_cached_token()):
         return (
             "<h3>🔒 セットアップはすでに完了しています。再設定するには `.spotifycache` ファイルを削除してください。</h3>",
@@ -205,7 +235,7 @@ def setup():
             else:
                 error = "URLを入力してください。"
 
-    # PIN 未認証の場合: 認証リンク (auth_url) は一切生成せず、PIN 入力画面のみ描画
+    # PIN 未認証時: 認証リンク (auth_url) は生成せず PIN 入力画面のみ表示
     if not is_pin_authenticated:
         return render_template(
             "setup.html",
@@ -213,7 +243,7 @@ def setup():
             error=error,
         )
 
-    # PIN 認証成功済みの場合のみ: Spotify 認可URL を生成して表示
+    # PIN 認証成功済みの場合のみ: Spotify 認可 URL を生成して表示
     auth_url = sp_oauth.get_authorize_url()
     return render_template(
         "setup.html",
@@ -259,34 +289,9 @@ def hist():
 
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):
-        item = current_track_raw["item"]
-        current_track = {
-            "name": item["name"],
-            "artist": ", ".join([artist["name"] for artist in item["artists"]]),
-            "album": item["album"]["name"],
-            "url": item["external_urls"]["spotify"],
-            "image_url": pick_album_image(item["album"]["images"]),
-        }
+        current_track = format_track_item(current_track_raw["item"])
 
-    history_arr = []
-    jst = timezone(timedelta(hours=+9))
-
-    for value in history["items"]:
-        played_at_str = value["played_at"].replace("Z", "+00:00")
-        dt_utc = datetime.fromisoformat(played_at_str)
-        dt_jst = dt_utc.astimezone(jst)
-
-        track = value["track"]
-        history_arr.append({
-            "played_at": dt_jst.strftime("%Y-%m-%d %H:%M:%S"),
-            "name": track["name"],
-            "artist": ", ".join([artist["name"] for artist in track["artists"]]),
-            "album": track["album"]["name"],
-            "url": track["external_urls"]["spotify"],
-            "image_url": pick_album_image(track["album"]["images"], preferred_index=1),
-        })
-
-    history_arr.sort(key=lambda x: x["played_at"], reverse=True)
+    history_arr = format_history_items(history.get("items", []))
 
     return render_template(
         "index.html", current_track=current_track, tracks=history_arr
