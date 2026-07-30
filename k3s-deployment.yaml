@@ -1,0 +1,98 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spotify
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spotify-secret
+  namespace: spotify
+type: Opaque
+stringData:
+  SPOTIPY_CLIENT_ID: "your_client_id_here"
+  SPOTIPY_CLIENT_SECRET: "your_client_secret_here"
+  SPOTIPY_REDIRECT_URI: "http://localhost:5000/callback"
+  SETUP_PIN: "your_custom_pin_here"  # (任意) 未指定の場合はログにランダムPINが自動生成されます
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spotify-cache-pvc
+  namespace: spotify
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spotify-nowplaying
+  namespace: spotify
+  labels:
+    app: spotify-nowplaying
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spotify-nowplaying
+  template:
+    metadata:
+      labels:
+        app: spotify-nowplaying
+    spec:
+      containers:
+        - name: dashboard
+          image: ghcr.io/ao-ba/spotify_nowplaying:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+          envFrom:
+            - secretRef:
+                name: spotify-secret
+          volumeMounts:
+            - name: cache-volume
+              mountPath: /app/.spotifycache
+              subPath: .spotifycache
+      volumes:
+        - name: cache-volume
+          persistentVolumeClaim:
+            claimName: spotify-cache-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spotify-nowplaying-service
+  namespace: spotify
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+  selector:
+    app: spotify-nowplaying
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spotify-nowplaying-ingress
+  namespace: spotify
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: spotify-nowplaying-service
+                port:
+                  number: 5000
