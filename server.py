@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import spotipy
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from requests.exceptions import RequestException, Timeout
 from spotipy import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
@@ -17,11 +17,17 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 app.json.ensure_ascii = False
 
-SPOTIFY_SCOPE = "user-read-currently-playing user-read-recently-played playlist-modify-public"
+SPOTIFY_SCOPE = (
+    "user-read-currently-playing "
+    "user-read-recently-played "
+    "playlist-modify-public "
+    "user-top-read"
+)
 SPOTIFY_CACHE_PATH = os.environ.get("SPOTIPY_CACHE_PATH", ".spotifycache")
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
 CACHE_TTL_SECONDS = 30
+TOP_CACHE_TTL_SECONDS = 3600  # 1時間 (3600秒) の長期間キャッシュ
 DEFAULT_FAVICON_SVG = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>"
 
 # キャッシュ保存用ディレクトリの確保
@@ -75,7 +81,32 @@ class _TTLCache:
             self._expires_at = self._fetched_at + self._ttl
 
 
+class _KeyedTTLCache:
+    """キーごとの TTL キャッシュクラス（Top 統計などの大容量・長期間キャッシュ用）"""
+
+    def __init__(self, ttl: float):
+        self._ttl = ttl
+        self._lock = threading.Lock()
+        self._store: Dict[str, Tuple[Any, float, float]] = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is not None:
+                val, _fetched_at, expires_at = entry
+                if time.monotonic() < expires_at:
+                    return val
+        return None
+
+    def set(self, key: str, value: Any) -> None:
+        with self._lock:
+            now = time.monotonic()
+            self._store[key] = (value, now, now + self._ttl)
+
+
 _spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
+_top_tracks_cache = _KeyedTTLCache(TOP_CACHE_TTL_SECONDS)
+_top_artists_cache = _KeyedTTLCache(TOP_CACHE_TTL_SECONDS)
 
 
 def create_auth_manager() -> SpotifyOAuth:
@@ -197,6 +228,29 @@ def format_history_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return history_arr
 
 
+def format_top_track_item(item: Dict[str, Any], rank: int) -> Dict[str, Any]:
+    return {
+        "rank": rank,
+        "name": item["name"],
+        "artist": ", ".join([artist["name"] for artist in item["artists"]]),
+        "album": item["album"]["name"],
+        "url": item["external_urls"]["spotify"],
+        "image_url": pick_album_image(item["album"]["images"], preferred_index=1),
+    }
+
+
+def format_top_artist_item(item: Dict[str, Any], rank: int) -> Dict[str, Any]:
+    genres = item.get("genres", [])
+    genre_str = ", ".join(genres[:2]) if genres else "Genre Unspecified"
+    return {
+        "rank": rank,
+        "name": item["name"],
+        "genre": genre_str,
+        "url": item["external_urls"]["spotify"],
+        "image_url": pick_album_image(item.get("images", []), preferred_index=1),
+    }
+
+
 def init() -> bool:
     try:
         sp_oauth = create_auth_manager()
@@ -302,6 +356,54 @@ def callback():
     except Exception as e:
         return redirect(url_for("setup", error=str(e)))
     return redirect(url_for("setup"))
+
+
+@app.route("/api/top_tracks", methods=["GET"])
+def api_top_tracks():
+    time_range = request.args.get("time_range", "short_term")
+    if time_range not in {"short_term", "medium_term", "long_term"}:
+        time_range = "short_term"
+
+    # 1時間 (3600秒) のインメモリキャッシュチェック
+    cached = _top_tracks_cache.get(time_range)
+    if cached is not None:
+        return jsonify({"tracks": cached, "cached": True})
+
+    try:
+        client = create_spotify_client()
+        res = client.current_user_top_tracks(limit=20, time_range=time_range)
+        formatted = [
+            format_top_track_item(item, rank=idx + 1)
+            for idx, item in enumerate(res.get("items", []))
+        ]
+        _top_tracks_cache.set(time_range, formatted)
+        return jsonify({"tracks": formatted, "cached": False})
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+@app.route("/api/top_artists", methods=["GET"])
+def api_top_artists():
+    time_range = request.args.get("time_range", "short_term")
+    if time_range not in {"short_term", "medium_term", "long_term"}:
+        time_range = "short_term"
+
+    # 1時間 (3600秒) のインメモリキャッシュチェック
+    cached = _top_artists_cache.get(time_range)
+    if cached is not None:
+        return jsonify({"artists": cached, "cached": True})
+
+    try:
+        client = create_spotify_client()
+        res = client.current_user_top_artists(limit=20, time_range=time_range)
+        formatted = [
+            format_top_artist_item(item, rank=idx + 1)
+            for idx, item in enumerate(res.get("items", []))
+        ]
+        _top_artists_cache.set(time_range, formatted)
+        return jsonify({"artists": formatted, "cached": False})
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
 
 
 @app.route("/", methods=["GET"])
