@@ -45,6 +45,57 @@
         margin: 0 auto;
       }
 
+      /* --- TOP HEADER & ACTIONS --- */
+      .main-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--card-border);
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .header-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin: 0;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+      }
+      .action-btn:hover {
+        background: var(--spotify-green);
+        color: #000000;
+        border-color: var(--spotify-green);
+        box-shadow: 0 4px 14px var(--spotify-green-glow);
+        transform: translateY(-1px);
+      }
+
       /* --- NOW PLAYING HEADER --- */
       #now-playing-capture {
         margin-bottom: 35px;
@@ -345,7 +396,7 @@
         box-shadow: 0 4px 12px var(--spotify-green-glow);
       }
 
-      /* Toast & Menu */
+      /* Toast */
       #toast {
         visibility: hidden;
         min-width: 160px;
@@ -370,81 +421,12 @@
         opacity: 1;
         bottom: 50px;
       }
-
-      #screenshot-menu-container {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column-reverse;
-        align-items: flex-end;
-      }
-      #menu-trigger {
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        background-color: var(--spotify-green);
-        color: #000000;
-        border: none;
-        font-size: 1.4rem;
-        cursor: pointer;
-        box-shadow: 0 6px 20px var(--spotify-green-glow);
-        transition: transform 0.2s;
-      }
-      #menu-trigger:hover {
-        transform: scale(1.08);
-      }
-      #menu-items {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 12px;
-        transition: all 0.3s ease;
-      }
-      #menu-items.hidden {
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(10px);
-      }
-      #menu-items button {
-        background: #181818;
-        color: #fff;
-        border: 1px solid var(--card-border);
-        padding: 10px 16px;
-        border-radius: 12px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 600;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        transition: all 0.2s;
-      }
-      #menu-items button:hover {
-        background: var(--spotify-green);
-        color: #000;
-      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const trigger = document.getElementById('menu-trigger');
-        const items = document.getElementById('menu-items');
-
-        trigger.addEventListener('click', () => {
-          items.classList.toggle('hidden');
-        });
-
-        document.addEventListener('click', (e) => {
-          if (!trigger.contains(e.target) && !items.contains(e.target)) {
-            items.classList.add('hidden');
-          }
-        });
-      });
-
       function captureElement(elementId) {
         const element = document.getElementById(elementId);
         if (!element) return;
-        document.getElementById('menu-items').classList.add('hidden');
         html2canvas(element, {
           backgroundColor: '#0d0d0e',
           scale: 2,
@@ -454,7 +436,7 @@
             if (navigator.clipboard && window.ClipboardItem) {
               const item = new ClipboardItem({ 'image/png': blob });
               navigator.clipboard.write([item]).then(() => {
-                showToast('画像をコピーしました！');
+                showToast('再生中トラック画像をコピーしました！');
               });
             }
           });
@@ -464,11 +446,8 @@
       function captureHistoryThreeRows(elementId) {
         const wrapper = document.getElementById(elementId);
         if (!wrapper) return;
-        document.getElementById('menu-items').classList.add('hidden');
 
         const clone = wrapper.cloneNode(true);
-        const screenshotContainer = clone.querySelector('#screenshot-menu-container');
-        if (screenshotContainer) screenshotContainer.remove();
 
         const grid = clone.querySelector('.grid-container');
         if (grid) {
@@ -494,7 +473,7 @@
             if (navigator.clipboard && window.ClipboardItem) {
               const item = new ClipboardItem({ 'image/png': blob });
               navigator.clipboard.write([item]).then(() => {
-                showToast('画像をコピーしました！');
+                showToast('再生履歴画像をコピーしました！');
               });
             }
           });
@@ -576,16 +555,22 @@
   </head>
   <body>
     <div id="toast">Copied.</div>
-    <div id="screenshot-menu-container">
-      <button id="menu-trigger">📸</button>
-      <div id="menu-items" class="hidden">
-        {% if current_track %}
-        <button onclick="captureElement('now-playing-capture')">Capture Playing</button>
-        {% endif %}
-        <button onclick="captureHistoryThreeRows('wrapper')">Capture History</button>
-      </div>
-    </div>
     <div id="wrapper">
+      <!-- TOP HEADER & ACTION BAR -->
+      <header class="main-header">
+        <h1 class="header-title">🎵 Spotify Dashboard</h1>
+        <div class="header-actions">
+          {% if current_track %}
+          <button class="action-btn" onclick="captureElement('now-playing-capture')">
+            📸 再生中を画像コピー
+          </button>
+          {% endif %}
+          <button class="action-btn" onclick="captureHistoryThreeRows('wrapper')">
+            📷 履歴を画像コピー
+          </button>
+        </div>
+      </header>
+
       {% if current_track %}
       <div id="now-playing-capture">
         <div class="badge-container">
