@@ -417,6 +417,36 @@
           toast.classList.remove('show');
         }, 2500);
       }
+
+      (function initSeekBarTicker() {
+        const container = document.getElementById('progress-container');
+        if (!container) return;
+
+        const currentEl = document.getElementById('progress-current-time');
+        const fillEl = document.getElementById('progress-bar-fill');
+
+        let progressMs = parseInt(container.dataset.progressMs || '0', 10);
+        const durationMs = parseInt(container.dataset.durationMs || '0', 10);
+        const isPlaying = container.dataset.isPlaying === 'true';
+
+        if (!isPlaying || durationMs <= 0) return;
+
+        function formatTime(ms) {
+          const totalSecs = Math.max(0, Math.floor(ms / 1000));
+          const mins = Math.floor(totalSecs / 60);
+          const secs = totalSecs % 60;
+          return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+
+        setInterval(() => {
+          if (progressMs < durationMs) {
+            progressMs += 1000;
+            const percent = Math.min(100, (progressMs / durationMs) * 100);
+            if (fillEl) fillEl.style.width = percent.toFixed(1) + '%';
+            if (currentEl) currentEl.innerText = formatTime(progressMs);
+          }
+        }, 1000);
+      })();
     </script>
     <div id="toast">Copied.</div>
     <div id="screenshot-menu-container">
@@ -438,10 +468,20 @@
             <h1>{{ current_track.name }}</h1>
             <p>{{ current_track.album }}</p>
             <p>{{ current_track.artist }}</p>
-            <div class="progress-container">
-              <span class="progress-time">{{ current_track.progress_str }}</span>
+            <div
+              class="progress-container"
+              id="progress-container"
+              data-progress-ms="{{ current_track.progress_ms }}"
+              data-duration-ms="{{ current_track.duration_ms }}"
+              data-is-playing="{{ 'true' if current_track.is_playing else 'false' }}"
+            >
+              <span class="progress-time" id="progress-current-time">{{ current_track.progress_str }}</span>
               <div class="progress-bar-track">
-                <div class="progress-bar-fill" style="width: {{ current_track.progress_percent }}%;"></div>
+                <div
+                  class="progress-bar-fill"
+                  id="progress-bar-fill"
+                  style="width: {{ current_track.progress_percent }}%;"
+                ></div>
               </div>
               <span class="progress-time">{{ current_track.duration_str }}</span>
             </div>

@@ -148,7 +148,9 @@ def format_time_ms(ms: int) -> str:
     return f"{minutes:02d}:{rem_seconds:02d}"
 
 
-def format_track_item(item: Dict[str, Any], progress_ms: Optional[int] = 0) -> Dict[str, Any]:
+def format_track_item(
+    item: Dict[str, Any], progress_ms: Optional[int] = 0, is_playing: bool = True
+) -> Dict[str, Any]:
     """現在再生中のトラックデータ（進捗状況含む）を画面表示用にフォーマット"""
     duration_ms = item.get("duration_ms", 0)
     prog_ms = progress_ms or 0
@@ -165,6 +167,7 @@ def format_track_item(item: Dict[str, Any], progress_ms: Optional[int] = 0) -> D
         "progress_percent": min(100.0, max(0.0, percent)),
         "progress_str": format_time_ms(prog_ms),
         "duration_str": format_time_ms(duration_ms),
+        "is_playing": is_playing,
     }
 
 
@@ -325,7 +328,10 @@ def hist():
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):
         progress_ms = current_track_raw.get("progress_ms", 0)
-        current_track = format_track_item(current_track_raw["item"], progress_ms=progress_ms)
+        is_playing = current_track_raw.get("is_playing", True)
+        current_track = format_track_item(
+            current_track_raw["item"], progress_ms=progress_ms, is_playing=is_playing
+        )
 
     history_arr = format_history_items(history.get("items", []))
 
