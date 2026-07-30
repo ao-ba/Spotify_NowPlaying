@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="ja">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     {% if current_track and current_track.image_url %}
     <title>▶ {{ current_track.name }} - {{ current_track.artist }} | Spotify Dashboard</title>
     <link id="favicon" rel="icon" type="image/jpeg" href="{{ current_track.image_url }}" />
@@ -8,407 +10,608 @@
     <title>Spotify Dashboard</title>
     <link id="favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
     {% endif %}
+
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
     <style>
+      :root {
+        --bg-color: #0d0d0e;
+        --card-bg: rgba(24, 26, 28, 0.75);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --spotify-green: #1db954;
+        --spotify-green-hover: #1ed760;
+        --spotify-green-glow: rgba(29, 185, 84, 0.4);
+        --text-primary: #ffffff;
+        --text-secondary: #b3b3b3;
+      }
+
       body {
-        font-family: sans-serif;
-        background-color: #121212;
-        color: white;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-color);
+        background-image: radial-gradient(circle at 50% 0%, #1c2620 0%, var(--bg-color) 60%);
+        background-attachment: fixed;
+        color: var(--text-primary);
         padding: 40px 20px;
         margin: 0;
+        min-height: 100vh;
+        box-sizing: border-box;
       }
+
       #wrapper {
         max-width: 1100px;
         margin: 0 auto;
       }
-      .now-playing-img {
-        width: 200px;
-        height: 200px;
-        border-radius: 8px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      }
-      .now-playing-info h1 {
-        font-size: 1.8em;
-        margin: 0;
-        color: #fff;
-        display: block;
-        width: 100%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        flex-shrink: 1;
-      }
-      .now-playing-info p {
-        font-size: 1.2em;
-        color: #b3b3b3;
-        margin: 0;
-        overflow: hidden;
-        min-width: 0px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-      .now-playing-info .button-group {
+
+      /* --- TOP HEADER & ACTIONS --- */
+      .main-header {
         display: flex;
-        flex-direction: row;
-        margin-top: 15px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--card-border);
         flex-wrap: wrap;
-        margin-top: 5px;
+        gap: 16px;
       }
+      .header-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin: 0;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+      }
+      .action-btn:hover {
+        background: var(--spotify-green);
+        color: #000000;
+        border-color: var(--spotify-green);
+        box-shadow: 0 4px 14px var(--spotify-green-glow);
+        transform: translateY(-1px);
+      }
+
+      /* --- NOW PLAYING HEADER --- */
+      #now-playing-capture {
+        margin-bottom: 35px;
+      }
+
+      .badge-container {
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .badge {
+        font-family: 'Outfit', sans-serif;
+        background: var(--spotify-green);
+        color: #000000;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        box-shadow: 0 4px 14px var(--spotify-green-glow);
+      }
+      .badge-paused {
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--text-secondary);
+        box-shadow: none;
+      }
+
+      /* Equalizer Animation */
+      .equalizer {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 14px;
+        margin-left: 10px;
+      }
+      .eq-bar {
+        width: 3px;
+        background-color: var(--spotify-green);
+        border-radius: 2px;
+        animation: eq-bounce 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+      }
+      .eq-bar-1 { height: 60%; animation-delay: 0.1s; }
+      .eq-bar-2 { height: 100%; animation-delay: 0.35s; }
+      .eq-bar-3 { height: 45%; animation-delay: 0.6s; }
+
+      @keyframes eq-bounce {
+        0% { height: 20%; }
+        100% { height: 100%; }
+      }
+
       .now-playing-container {
         display: flex;
         align-items: center;
-        gap: 20px;
-        height: 200px;
-        padding: 20px;
-        background: linear-gradient(135deg, #282828 0%, #121212 100%);
-        border-radius: 12px;
-        border: 1px solid #333;
+        gap: 28px;
+        padding: 28px;
+        background: var(--card-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 20px;
+        border: 1px solid var(--card-border);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         overflow: hidden;
+        transition: border-color 0.3s ease;
       }
+
+      .now-playing-container:hover {
+        border-color: rgba(29, 185, 84, 0.3);
+      }
+
+      /* Empty State */
+      .empty-state-container {
+        padding: 36px 28px;
+      }
+      .empty-icon-wrapper {
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--card-border);
+        flex-shrink: 0;
+      }
+      .empty-music-icon {
+        font-size: 2.8rem;
+        animation: pulse-icon 2.5s ease-in-out infinite alternate;
+      }
+      @keyframes pulse-icon {
+        0% { transform: scale(0.95); opacity: 0.4; }
+        100% { transform: scale(1.05); opacity: 0.9; }
+      }
+      .empty-title {
+        font-size: 1.4rem !important;
+        color: var(--text-secondary) !important;
+      }
+      .empty-subtitle {
+        font-size: 0.9rem !important;
+        color: rgba(255, 255, 255, 0.4) !important;
+        margin-top: 6px !important;
+      }
+
+      /* Ambient Image Glow */
+      .now-playing-img-wrapper {
+        position: relative;
+        width: 180px;
+        height: 180px;
+        flex-shrink: 0;
+      }
+      .now-playing-img-glow {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 16px;
+        filter: blur(22px);
+        opacity: 0.65;
+        transform: scale(0.95);
+        z-index: 1;
+      }
+      .now-playing-img {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        object-fit: cover;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+      .now-playing-container:hover .now-playing-img {
+        transform: scale(1.03);
+      }
+
       .now-playing-info {
         flex: 1;
         min-width: 0;
         display: flex;
         flex-direction: column;
-        height: 100%;
         justify-content: space-between;
       }
+
+      .now-playing-info h1 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 6px 0;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: -0.01em;
+      }
+
+      .now-playing-info p {
+        font-size: 1.05rem;
+        color: var(--text-secondary);
+        margin: 2px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Progress Bar */
       .progress-container {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin: 10px 0;
+        margin: 14px 0 12px 0;
         width: 100%;
       }
       .progress-time {
-        font-size: 0.8em;
-        color: #b3b3b3;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
         font-family: monospace, SFMono-Regular, Consolas, sans-serif;
         min-width: 40px;
       }
       .progress-bar-track {
         flex: 1;
         height: 6px;
-        background-color: #3e3e3e;
+        background-color: rgba(255, 255, 255, 0.12);
         border-radius: 3px;
         overflow: hidden;
         position: relative;
       }
       .progress-bar-fill {
         height: 100%;
-        background-color: #1db954;
+        background-color: var(--spotify-green);
         border-radius: 3px;
-        transition: width 0.4s ease;
+        box-shadow: 0 0 10px var(--spotify-green-glow);
+        transition: width 0.1s linear;
       }
+
+      /* Button Group */
+      .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+      }
+
       .now-playing-info a,
       .now-playing-info .copy-btn {
-        display: inline-block;
-        width: 200px;
-        margin-top: 10px;
-        text-align: center;
-        text-decoration: none;
-        font-weight: bold;
-        padding: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 18px;
         border-radius: 20px;
-        border: 1px solid #1db954;
-        font-size: 0.85em;
+        border: 1px solid var(--spotify-green);
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
         box-sizing: border-box;
-        transition: all 0.2s;
-        margin-right: 20px;
+        transition: all 0.2s ease;
         background: transparent;
-        color: #1db954;
+        color: var(--spotify-green);
+        cursor: pointer;
       }
       .now-playing-info a:hover,
       .now-playing-info .copy-btn:hover {
-        background: rgba(29, 185, 84, 0.1);
+        background: var(--spotify-green);
+        color: #000000;
+        box-shadow: 0 4px 16px var(--spotify-green-glow);
+        transform: translateY(-1px);
       }
-      .badge {
-        background: #1db954;
-        color: black;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 0.8em;
-        display: inline-block;
-        margin-bottom: 10px;
-      }
+
+      /* --- RECENTLY PLAYED GRID --- */
       .section-title {
-        font-size: 1.5em;
-        border-bottom: 1px solid #333;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-        color: #b3b3b3;
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
       }
+
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 20px;
         width: 100%;
       }
+
       .card {
-        background: #181818;
-        border-radius: 8px;
-        padding: 15px;
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 16px;
         display: flex;
         flex-direction: column;
-        height: 100%;
-        transition:
-          background 0.3s,
-          transform 0.2s;
+        transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
         box-sizing: border-box;
       }
+
       .card:hover {
-        background: #282828;
-        transform: translateY(-5px);
+        background: rgba(36, 39, 42, 0.9);
+        transform: translateY(-6px);
+        border-color: rgba(29, 185, 84, 0.35);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
       }
-      .card h3 {
-        font-size: 0.95em;
-        margin: 10px 0 5px;
-        line-height: 1.3;
-        color: #fff;
-        height: 2.6em;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+
+      .card-img-wrapper {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 10px;
         overflow: hidden;
-        white-space: normal;
+        margin-bottom: 12px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
       }
+
       .card img {
         width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;
+        height: 100%;
         object-fit: cover;
-        border-radius: 4px;
-        margin-bottom: 10px;
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
-      .card .played-at {
-        color: #1db954;
-        font-size: 0.75em;
-        margin-top: 5px;
-        margin-bottom: 10px;
+
+      .card:hover img {
+        transform: scale(1.06);
       }
-      .card p {
-        font-size: 0.8em;
-        color: #b3b3b3;
-        margin: 3px 0;
+
+      /* 均等な高さ揃えのための固定行高さ設定 */
+      .card h3 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 4px 0;
+        line-height: 1.35;
+        height: 2.7em;
+        color: var(--text-primary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .album-name {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 2px 0;
+        line-height: 1.35;
+        height: 1.35em;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .card p.artist-name {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 2px 0;
+        line-height: 1.35;
+        height: 1.35em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        min-height: 1.2em;
       }
-      .card a {
-        display: block;
+
+      .card .played-at {
+        color: var(--spotify-green);
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin: 6px 0 14px 0;
+      }
+
+      /* ボタンエリアの統一（高さ・位置の完全垂直同期） */
+      .card-buttons {
         margin-top: auto;
-        color: #1db954;
-        text-decoration: none;
-        font-size: 0.8em;
-        border: 1px solid #1db954;
-        border-radius: 20px;
-        padding: 5px;
-        text-align: center;
-      }
-      .copy-btn {
-        margin-top: 8px;
-        background: transparent;
-        color: #1db954;
-        border: 1px solid #1db954;
-        border-radius: 20px;
-        padding: 5px;
-        font-size: 0.8em;
-        cursor: pointer;
-        width: 100%;
-        transition: all 0.2s;
-      }
-      .album-name {
-        font-size: 0.75em;
-        color: #b3b3b3;
-        margin: 4px 0;
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .copy-btn:hover {
-        background: rgba(29, 185, 84, 0.1);
-      }
-      #screenshot-menu-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column-reverse;
-        align-items: flex-end;
-      }
-      #menu-trigger {
-        width: 50px;
-        height: 50px;
-	right: 30px;
-        border-radius: 50%;
-        background-color: #1DB954;
-        border: none;
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      }
-      #menu-items {
-        margin-bottom: 10px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
       }
-      #menu-items.hidden { display: none; }
-      #menu-items button {
-        background: #282828;
-        color: white;
-        border: 1px solid #404040;
-        padding: 10px 15px;
-        border-radius: 8px;
+
+      .card-buttons a,
+      .card-buttons .copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--spotify-green);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid var(--spotify-green);
+        border-radius: 20px;
+        padding: 6px 0;
+        text-align: center;
+        background: transparent;
         cursor: pointer;
-        white-space: nowrap;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        width: 100%;
+        margin-top: 0;
       }
-      #menu-items button:hover { background: #3e3e3e; }
+
+      .card-buttons a:hover,
+      .card-buttons .copy-btn:hover {
+        background: var(--spotify-green);
+        color: #000000;
+        box-shadow: 0 4px 12px var(--spotify-green-glow);
+      }
+
+      /* Toast */
       #toast {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-100px);
-        background-color: #1DB954;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 30px;
+        visibility: hidden;
+        min-width: 160px;
+        background-color: var(--spotify-green);
+        color: #000;
         font-weight: bold;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-        z-index: 9999;
+        font-size: 0.9rem;
+        text-align: center;
+        border-radius: 30px;
+        padding: 10px 20px;
+        position: fixed;
+        z-index: 2000;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%);
+        box-shadow: 0 8px 24px var(--spotify-green-glow);
+        opacity: 0;
+        transition: opacity 0.3s, bottom 0.3s;
       }
       #toast.show {
-        transform: translateX(-50%) translateY(0);
+        visibility: visible;
+        opacity: 1;
+        bottom: 50px;
       }
-      .hidden { display: none !important; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  </head>
-  <body>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const trigger = document.getElementById('menu-trigger');
-        const menu = document.getElementById('menu-items');
-        if (trigger && menu) {
-          trigger.addEventListener('click', () => {
-            menu.classList.toggle('hidden');
-          });
+      function copyCanvasToClipboard(canvas, successToastMsg) {
+        if (!navigator.clipboard) {
+          showToast('お使いの接続環境 (http://) ではブラウザのクリップボード機能が制限されています');
+          return;
         }
-      });
-
-      async function captureElement(elementId) {
-        const element = document.getElementById(elementId);
-        if (!element) return;
 
         try {
-          const fullCanvas = await html2canvas(element, {
-            backgroundColor: '#121212',
-            useCORS: true,
-            scale: 2
+          // Safari / WebKit / Chrome 対策: toBlob の Promise を ClipboardItem に同期的に渡す
+          const blobPromise = new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas blob generation failed'));
+            }, 'image/png');
           });
 
-          const padding = 40;
-          const maxWidth = 800;
-          let finalWidth = fullCanvas.width + (padding * 2);
-          let finalHeight = fullCanvas.height + (padding * 2);
-          let displayScale = 1;
-          if (finalWidth > maxWidth) {
-            displayScale = maxWidth / finalWidth;
-            finalWidth = maxWidth;
-            finalHeight = finalHeight * displayScale;
+          if (typeof ClipboardItem !== 'undefined') {
+            const item = new ClipboardItem({ 'image/png': blobPromise });
+            navigator.clipboard.write([item]).then(() => {
+              showToast(successToastMsg);
+            }).catch((err) => {
+              console.error('Clipboard write promise failed:', err);
+              blobPromise.then((blob) => {
+                const fallbackItem = new ClipboardItem({ 'image/png': blob });
+                return navigator.clipboard.write([fallbackItem]);
+              }).then(() => {
+                showToast(successToastMsg);
+              }).catch((e) => {
+                console.error('Fallback clipboard write error:', e);
+                showToast('クリップボードコピー失敗 (HTTPS接続推奨)');
+              });
+            });
+          } else {
+            showToast('お使いのブラウザは画像クリップボード非対応です');
           }
-
-          const finalCanvas = document.createElement('canvas');
-          finalCanvas.width = finalWidth;
-          finalCanvas.height = finalHeight;
-
-          const ctx = finalCanvas.getContext('2d');
-          ctx.fillStyle = '#121212'; 
-          ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-          const drawWidth = fullCanvas.width * displayScale;
-          const drawHeight = fullCanvas.height * displayScale;
-          const offsetX = (finalWidth - drawWidth) / 2;
-          const offsetY = (finalHeight - drawHeight) / 2;
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(fullCanvas, offsetX, offsetY, drawWidth, drawHeight);
-          finalCanvas.toBlob(async (blob) => {
-            if (!blob) return;
-            try {
-              const data = [new ClipboardItem({ 'image/png': blob })];
-              await navigator.clipboard.write(data);
-              document.getElementById('menu-items').classList.add('hidden');
-              showToast('Copied.');
-            } catch (err) {
-              console.error(err);
-              showToast('Failed.');
-            }
-          }, 'image/png');
         } catch (err) {
           console.error(err);
+          showToast('コピー処理中にエラーが発生しました');
         }
       }
 
-      async function captureHistoryThreeRows(containerId) {
-        const original = document.getElementById(containerId);
-        if (!original) return;
-        const firstCard = original.querySelector('.card');
-        if (!firstCard) return;
-
-        const cardHeight = firstCard.offsetHeight;
-        const style = window.getComputedStyle(original);
-        const rowGap = parseFloat(style.rowGap) || 0;
-        const targetHeight = (cardHeight * 3) + (rowGap * 2) + parseFloat(style.paddingTop);
-
-        const tempId = 'temp-capture-' + Date.now();
-        const clone = original.cloneNode(true);
-        clone.id = tempId;
-        clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-        Object.assign(clone.style, {
-          position: 'absolute',
-          top: '-9999px',
-          left: '0',
-          width: original.offsetWidth + 'px',
-          height: targetHeight + 'px',
-          overflow: 'hidden',
-          visibility: 'visible',
-          webkitMaskImage: 'linear-gradient(to bottom, black 65%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, black 65%, transparent 100%)'
+      function captureElement(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        showToast('画像をコピー中...');
+        html2canvas(element, {
+          backgroundColor: '#0d0d0e',
+          scale: 2,
+          useCORS: true,
+        }).then((canvas) => {
+          copyCanvasToClipboard(canvas, '再生中トラック画像をコピーしました！');
+        }).catch((err) => {
+          console.error(err);
+          showToast('画像生成エラーが発生しました');
         });
-        document.body.appendChild(clone);
-        try {
-          await captureElement(tempId); 
-          showToast('Copied.');
-        } catch (err) {
-              console.error(err);
-              showToast('Failed.');
-        } finally {
-          document.body.removeChild(clone);
-        }
       }
-      async function copyToClipboard(song, artist, album, url, btn) {
-        const textToCopy = `${song} (${album}) - ${artist}\n${url}`;
+
+      function captureHistoryThreeRows(elementId) {
+        const wrapper = document.getElementById(elementId);
+        if (!wrapper) return;
+
+        showToast('履歴画像をコピー中...');
+        const clone = wrapper.cloneNode(true);
+
+        // ヘッダーおよび NOW PLAYING カード（再生中/停止中問わず）をクローンから除去
+        const header = clone.querySelector('.main-header');
+        if (header) header.remove();
+
+        const nowPlaying = clone.querySelector('#now-playing-capture');
+        if (nowPlaying) nowPlaying.remove();
+
+        const grid = clone.querySelector('.grid-container');
+        if (grid) {
+          const cards = grid.querySelectorAll('.card');
+          cards.forEach((card, index) => {
+            if (index >= 15) card.remove();
+          });
+        }
+
+        clone.style.position = 'fixed';
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.zIndex = '-99999';
+        clone.style.opacity = '0.01';
+        clone.style.pointerEvents = 'none';
+        clone.style.width = wrapper.offsetWidth + 'px';
+        clone.style.padding = '20px';
+        document.body.appendChild(clone);
+
+        html2canvas(clone, {
+          backgroundColor: '#0d0d0e',
+          scale: 2,
+          useCORS: true,
+        }).then((canvas) => {
+          if (document.body.contains(clone)) document.body.removeChild(clone);
+          copyCanvasToClipboard(canvas, '再生履歴画像をコピーしました！');
+        }).catch((err) => {
+          console.error(err);
+          if (document.body.contains(clone)) document.body.removeChild(clone);
+          showToast('画像生成エラーが発生しました');
+        });
+      }
+
+      async function copyToClipboard(trackName, artistName, albumName, trackUrl, btnElement) {
+        const originalText = btnElement.innerText;
+        const textToCopy = `${trackName} / ${artistName} - ${albumName}\n${trackUrl}`;
         try {
           await navigator.clipboard.writeText(textToCopy);
-          const originalText = btn.innerText;
-          btn.innerText = "コピー完了";
-          btn.style.background = "#1db954";
-          btn.style.color = "black";
+          btnElement.innerText = "コピー完了";
+          btnElement.style.background = "#1db954";
+          btnElement.style.color = "black";
           setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.background = "transparent";
-            btn.style.color = "#1db954";
+            btnElement.innerText = originalText;
+            btnElement.style.background = "transparent";
+            btnElement.style.color = "#1db954";
           }, 1500);
         } catch (err) {
           console.error(err);
         }
       }
+
       function showToast(message) {
         const toast = document.getElementById('toast');
         toast.innerText = message;
@@ -463,22 +666,41 @@
         requestAnimationFrame(update);
       });
     </script>
+  </head>
+  <body>
     <div id="toast">Copied.</div>
-    <div id="screenshot-menu-container">
-      <button id="menu-trigger">📸</button>
-      <div id="menu-items" class="hidden">
-        {% if current_track %}
-        <button onclick="captureElement('now-playing-capture')">Capture Playing</button>
-	{% endif %}
-        <button onclick="captureHistoryThreeRows('wrapper')">Capture History</button>
-      </div>
-    </div>
     <div id="wrapper">
+      <!-- TOP HEADER & ACTION BAR -->
+      <header class="main-header">
+        <h1 class="header-title">🎵 Spotify Dashboard</h1>
+        <div class="header-actions">
+          {% if current_track %}
+          <button class="action-btn" onclick="captureElement('now-playing-capture')">
+            📸 再生中を画像コピー
+          </button>
+          {% endif %}
+          <button class="action-btn" onclick="captureHistoryThreeRows('wrapper')">
+            📷 履歴を画像コピー
+          </button>
+        </div>
+      </header>
+
       {% if current_track %}
+      <!-- NOW PLAYING (ACTIVE) -->
       <div id="now-playing-capture">
-        <div class="badge">NOW PLAYING</div>
+        <div class="badge-container">
+          <span class="badge">NOW PLAYING</span>
+          <div class="equalizer">
+            <span class="eq-bar eq-bar-1"></span>
+            <span class="eq-bar eq-bar-2"></span>
+            <span class="eq-bar eq-bar-3"></span>
+          </div>
+        </div>
         <div class="now-playing-container">
-          <img src="{{ current_track.image_url }}" class="now-playing-img" />
+          <div class="now-playing-img-wrapper">
+            <img src="{{ current_track.image_url }}" class="now-playing-img-glow" alt="" />
+            <img src="{{ current_track.image_url }}" class="now-playing-img" alt="{{ current_track.album }}" />
+          </div>
           <div class="now-playing-info">
             <h1>{{ current_track.name }}</h1>
             <p>{{ current_track.album }}</p>
@@ -501,10 +723,10 @@
               <span class="progress-time">{{ current_track.duration_str }}</span>
             </div>
             <div class="button-group">
-              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
+              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く ↗</a>
               <button
                 class="copy-btn"
-              onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
+                onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
               >
                 リンクをコピー
               </button>
@@ -512,25 +734,46 @@
           </div>
         </div>
       </div>
+      {% else %}
+      <!-- NOW PLAYING (EMPTY / PAUSED STATE) -->
+      <div id="now-playing-capture">
+        <div class="badge-container">
+          <span class="badge badge-paused">PAUSED / IDLE</span>
+        </div>
+        <div class="now-playing-container empty-state-container">
+          <div class="empty-icon-wrapper">
+            <span class="empty-music-icon">🎵</span>
+          </div>
+          <div class="now-playing-info">
+            <h1 class="empty-title">現在再生中の曲はありません</h1>
+            <p class="empty-subtitle">Spotify アプリで楽曲を再生するとリアルタイムでダッシュボードに反映されます。</p>
+          </div>
+        </div>
+      </div>
       {% endif %}
+
       <h2 class="section-title">Recently Played</h2>
       <div class="grid-container">
         {% for track in tracks %}
         <div class="card">
           {% if track.image_url %}
-          <img src="{{ track.image_url }}" alt="{{ track.album }}" loading="lazy" />
+          <div class="card-img-wrapper">
+            <img src="{{ track.image_url }}" alt="{{ track.album }}" loading="lazy" />
+          </div>
           {% endif %}
           <h3>{{ track.name }}</h3>
           <p class="album-name">{{ track.album }}</p>
-          <p>{{ track.artist }}</p>
+          <p class="artist-name">{{ track.artist }}</p>
           <p class="played-at">🕒 {{ track.played_at }}</p>
-          <a href="{{ track.url }}" target="_blank">Spotify で聴く</a>
-          <button
-            class="copy-btn"
-            onclick="copyToClipboard('{{ track.name }}', '{{ track.artist }}', '{{ track.album }}', '{{ track.url }}', this)"
-          >
-            リンクをコピー
-          </button>
+          <div class="card-buttons">
+            <a href="{{ track.url }}" target="_blank">Spotify で聴く ↗</a>
+            <button
+              class="copy-btn"
+              onclick="copyToClipboard('{{ track.name }}', '{{ track.artist }}', '{{ track.album }}', '{{ track.url }}', this)"
+            >
+              リンクをコピー
+            </button>
+          </div>
         </div>
         {% endfor %}
       </div>
