@@ -570,11 +570,12 @@
           });
         }
 
-        clone.style.position = 'fixed';
-        clone.style.top = '0';
-        clone.style.left = '0';
+        clone.style.position = 'absolute';
+        clone.style.top = '-9999px';
+        clone.style.left = '-9999px';
         clone.style.zIndex = '-99999';
-        clone.style.opacity = '0.01';
+        clone.style.opacity = '1';
+        clone.style.visibility = 'visible';
         clone.style.pointerEvents = 'none';
         clone.style.width = wrapper.offsetWidth + 'px';
         clone.style.padding = '20px';
