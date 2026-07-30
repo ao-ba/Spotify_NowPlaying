@@ -9,7 +9,7 @@ Spotify で現在再生中の曲をリアルタイムで表示し、直近の再
 ### 1. Spotify Developer アプリの準備
 1. [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/) にログインし、新しい App を作成します。
 2. アプリの `Settings` で **Redirect URIs** に使用する URL を登録します。
-   - 例: `http://localhost:5000/callback` や `https://127.0.0.1/callback`
+   - 例: `https://127.0.0.1/callback` や `http://localhost:5000/callback`
 3. 発行された **Client ID** と **Client Secret** を手元に控えます。
 
 ### 2. 環境変数の設定
@@ -22,7 +22,7 @@ cp .env.example .env
 ```env
 SPOTIPY_CLIENT_ID=your_client_id_here
 SPOTIPY_CLIENT_SECRET=your_client_secret_here
-SPOTIPY_REDIRECT_URI=http://localhost:5000/callback
+SPOTIPY_REDIRECT_URI=https://127.0.0.1/callback
 ```
 
 ### 3. コンテナの起動
@@ -52,7 +52,7 @@ docker compose up -d
 2. ブラウザで `http://localhost:5000` にアクセスします（未認証時は自動で `/setup` に誘導されます）。
 3. 取得した `SETUP_PIN` を入力して「認証して進む」をクリックします。
 4. **「1. Spotify で認証する」** ボタンを押し、Spotify の認可画面で「同意する」をクリックします。
-5. 認可後にブラウザのアドレスバーに表示された URL（例: `http://localhost:5000/callback?code=...` や `https://127.0.0.1/callback?code=...`）をコピーし、セットアップ画面の **「2. リダイレクト URL の貼り付け」** フォームに貼り付けて送信します。
+5. 認可後にブラウザのアドレスバーに表示された URL（例: `https://127.0.0.1/callback?code=...`）をコピーし、セットアップ画面の **「2. リダイレクト URL の貼り付け」** フォームに貼り付けて送信します。
 6. 認証キャッシュ (`.spotifycache`) が保存され、ダッシュボード画面が表示されます！
 
 ---
