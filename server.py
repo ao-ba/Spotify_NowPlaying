@@ -18,10 +18,15 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 app.json.ensure_ascii = False
 
 SPOTIFY_SCOPE = "user-read-currently-playing user-read-recently-played playlist-modify-public"
-SPOTIFY_CACHE_PATH = ".spotifycache"
+SPOTIFY_CACHE_PATH = os.environ.get("SPOTIPY_CACHE_PATH", ".spotifycache")
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
 CACHE_TTL_SECONDS = 30
+
+# キャッシュ保存ディレクトリが存在しない場合は作成
+cache_dir = os.path.dirname(SPOTIFY_CACHE_PATH)
+if cache_dir:
+    os.makedirs(cache_dir, exist_ok=True)
 
 
 def _init_setup_pin():
@@ -159,15 +164,16 @@ def setup():
         )
 
     error = None
-    is_pin_authenticated = session.get("setup_authenticated", False)
+    input_pin = request.form.get("pin") or session.get("setup_pin")
+    is_pin_authenticated = (input_pin == SETUP_PIN) or session.get("setup_authenticated", False)
 
     if request.method == "POST":
         action = request.form.get("action")
 
         # 段階1: PIN コードの検証
         if action == "verify_pin" or not is_pin_authenticated:
-            input_pin = request.form.get("pin")
             if input_pin == SETUP_PIN:
+                session["setup_pin"] = input_pin
                 session["setup_authenticated"] = True
                 is_pin_authenticated = True
             else:
@@ -187,11 +193,15 @@ def setup():
             if response_url:
                 try:
                     code = sp_oauth.parse_response_code(response_url.strip())
-                    sp_oauth.get_access_token(code, as_dict=False)
-                    session.pop("setup_authenticated", None)
-                    return redirect(url_for("hist"))
+                    token_info = sp_oauth.get_access_token(code, as_dict=True)
+                    if token_info:
+                        session.pop("setup_authenticated", None)
+                        session.pop("setup_pin", None)
+                        return redirect(url_for("hist"))
+                    else:
+                        error = "トークンの取得に失敗しました。URLを再度確認してください。"
                 except Exception as e:
-                    error = str(e)
+                    error = f"認証エラー: {e}"
             else:
                 error = "URLを入力してください。"
 
@@ -210,6 +220,7 @@ def setup():
         is_authenticated=True,
         auth_url=auth_url,
         error=error,
+        pin=input_pin or SETUP_PIN,
     )
 
 

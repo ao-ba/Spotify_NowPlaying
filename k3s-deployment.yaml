@@ -14,6 +14,7 @@ stringData:
   SPOTIPY_CLIENT_ID: "your_client_id_here"
   SPOTIPY_CLIENT_SECRET: "your_client_secret_here"
   SPOTIPY_REDIRECT_URI: "https://127.0.0.1/callback"
+  SPOTIPY_CACHE_PATH: "/data/.spotifycache"
   # SETUP_PIN: "your_custom_pin_here"  # (任意) 未指定時は起動ログにランダムPINが自動生成されます
 ---
 apiVersion: v1
@@ -57,8 +58,7 @@ spec:
                 name: spotify-secret
           volumeMounts:
             - name: cache-volume
-              mountPath: /app/.spotifycache
-              subPath: .spotifycache
+              mountPath: /data
       volumes:
         - name: cache-volume
           persistentVolumeClaim:
