@@ -81,18 +81,17 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: spotify-nowplaying-ingress
+  name: nowplaying
   namespace: spotify
   annotations:
-    ingress.kubernetes.io/ssl-redirect: "false"
+    tailscale.com/funnel: "true"
 spec:
-  rules:
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: spotify-nowplaying-service
-                port:
-                  number: 5000
+  defaultBackend:
+    service:
+      name: spotify-nowplaying-service
+      port:
+        number: 5000
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - nowplaying
