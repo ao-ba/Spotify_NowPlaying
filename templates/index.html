@@ -72,6 +72,33 @@
         height: 100%;
         justify-content: space-between;
       }
+      .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 10px 0;
+        width: 100%;
+      }
+      .progress-time {
+        font-size: 0.8em;
+        color: #b3b3b3;
+        font-family: monospace, SFMono-Regular, Consolas, sans-serif;
+        min-width: 40px;
+      }
+      .progress-bar-track {
+        flex: 1;
+        height: 6px;
+        background-color: #3e3e3e;
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background-color: #1db954;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+      }
       .now-playing-info a,
       .now-playing-info .copy-btn {
         display: inline-block;
@@ -411,6 +438,13 @@
             <h1>{{ current_track.name }}</h1>
             <p>{{ current_track.album }}</p>
             <p>{{ current_track.artist }}</p>
+            <div class="progress-container">
+              <span class="progress-time">{{ current_track.progress_str }}</span>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" style="width: {{ current_track.progress_percent }}%;"></div>
+              </div>
+              <span class="progress-time">{{ current_track.duration_str }}</span>
+            </div>
             <div class="button-group">
               <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
               <button

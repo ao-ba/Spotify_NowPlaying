@@ -140,14 +140,31 @@ def pick_album_image(images: List[Dict[str, Any]], preferred_index: int = 0) -> 
     return images[safe_index]["url"]
 
 
-def format_track_item(item: Dict[str, Any]) -> Dict[str, Any]:
-    """現在再生中のトラックデータを画面表示用にフォーマット"""
+def format_time_ms(ms: int) -> str:
+    """ミリ秒を mm:ss 形式の文字列に変換"""
+    seconds = max(0, int(ms) // 1000)
+    minutes = seconds // 60
+    rem_seconds = seconds % 60
+    return f"{minutes:02d}:{rem_seconds:02d}"
+
+
+def format_track_item(item: Dict[str, Any], progress_ms: Optional[int] = 0) -> Dict[str, Any]:
+    """現在再生中のトラックデータ（進捗状況含む）を画面表示用にフォーマット"""
+    duration_ms = item.get("duration_ms", 0)
+    prog_ms = progress_ms or 0
+    percent = round((prog_ms / duration_ms) * 100, 1) if duration_ms > 0 else 0.0
+
     return {
         "name": item["name"],
         "artist": ", ".join([artist["name"] for artist in item["artists"]]),
         "album": item["album"]["name"],
         "url": item["external_urls"]["spotify"],
         "image_url": pick_album_image(item["album"]["images"]),
+        "progress_ms": prog_ms,
+        "duration_ms": duration_ms,
+        "progress_percent": min(100.0, max(0.0, percent)),
+        "progress_str": format_time_ms(prog_ms),
+        "duration_str": format_time_ms(duration_ms),
     }
 
 
@@ -307,7 +324,8 @@ def hist():
 
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):
-        current_track = format_track_item(current_track_raw["item"])
+        progress_ms = current_track_raw.get("progress_ms", 0)
+        current_track = format_track_item(current_track_raw["item"], progress_ms=progress_ms)
 
     history_arr = format_history_items(history.get("items", []))
 
