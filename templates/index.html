@@ -498,6 +498,13 @@
 
         const clone = wrapper.cloneNode(true);
 
+        // ヘッダーおよび NOW PLAYING カード（再生中/停止中問わず）をクローンから除去
+        const header = clone.querySelector('.main-header');
+        if (header) header.remove();
+
+        const nowPlaying = clone.querySelector('#now-playing-capture');
+        if (nowPlaying) nowPlaying.remove();
+
         const grid = clone.querySelector('.grid-container');
         if (grid) {
           const cards = grid.querySelectorAll('.card');
@@ -510,6 +517,7 @@
         clone.style.top = '-9999px';
         clone.style.left = '-9999px';
         clone.style.width = wrapper.offsetWidth + 'px';
+        clone.style.padding = '20px';
         document.body.appendChild(clone);
 
         html2canvas(clone, {
@@ -517,15 +525,22 @@
           scale: 2,
           useCORS: true,
         }).then((canvas) => {
-          document.body.removeChild(clone);
+          if (document.body.contains(clone)) document.body.removeChild(clone);
           canvas.toBlob((blob) => {
             if (navigator.clipboard && window.ClipboardItem) {
               const item = new ClipboardItem({ 'image/png': blob });
               navigator.clipboard.write([item]).then(() => {
                 showToast('再生履歴画像をコピーしました！');
+              }).catch((err) => {
+                console.error(err);
+                showToast('クリップボードへのコピーに失敗しました');
               });
             }
           });
+        }).catch((err) => {
+          console.error(err);
+          if (document.body.contains(clone)) document.body.removeChild(clone);
+          showToast('画像生成エラーが発生しました');
         });
       }
 
