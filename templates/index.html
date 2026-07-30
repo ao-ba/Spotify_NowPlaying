@@ -72,6 +72,33 @@
         height: 100%;
         justify-content: space-between;
       }
+      .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 10px 0;
+        width: 100%;
+      }
+      .progress-time {
+        font-size: 0.8em;
+        color: #b3b3b3;
+        font-family: monospace, SFMono-Regular, Consolas, sans-serif;
+        min-width: 40px;
+      }
+      .progress-bar-track {
+        flex: 1;
+        height: 6px;
+        background-color: #3e3e3e;
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background-color: #1db954;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+      }
       .now-playing-info a,
       .now-playing-info .copy-btn {
         display: inline-block;
@@ -390,6 +417,51 @@
           toast.classList.remove('show');
         }, 2500);
       }
+
+      document.addEventListener('DOMContentLoaded', function initSeekBarTicker() {
+        const container = document.getElementById('progress-container');
+        if (!container) return;
+
+        const currentEl = document.getElementById('progress-current-time');
+        const fillEl = document.getElementById('progress-bar-fill');
+
+        const startProgressMs = parseInt(container.dataset.progressMs || '0', 10);
+        const durationMs = parseInt(container.dataset.durationMs || '0', 10);
+        const isPlaying = container.dataset.isPlaying === 'true';
+
+        if (!isPlaying || durationMs <= 0) return;
+
+        const startTime = Date.now();
+        let reloadScheduled = false;
+
+        function formatTime(ms) {
+          const totalSecs = Math.max(0, Math.floor(ms / 1000));
+          const mins = Math.floor(totalSecs / 60);
+          const secs = totalSecs % 60;
+          return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+
+        function update() {
+          const elapsed = Date.now() - startTime;
+          const currentMs = Math.min(durationMs, startProgressMs + elapsed);
+          const percent = Math.min(100, (currentMs / durationMs) * 100);
+
+          if (fillEl) fillEl.style.width = percent.toFixed(2) + '%';
+          if (currentEl) currentEl.innerText = formatTime(currentMs);
+
+          if (currentMs < durationMs) {
+            requestAnimationFrame(update);
+          } else if (!reloadScheduled) {
+            reloadScheduled = true;
+            // 楽曲が終了（100%到達）してから 5 秒後に自動リロード
+            setTimeout(() => {
+              window.location.reload();
+            }, 5000);
+          }
+        }
+
+        requestAnimationFrame(update);
+      });
     </script>
     <div id="toast">Copied.</div>
     <div id="screenshot-menu-container">
@@ -411,6 +483,23 @@
             <h1>{{ current_track.name }}</h1>
             <p>{{ current_track.album }}</p>
             <p>{{ current_track.artist }}</p>
+            <div
+              class="progress-container"
+              id="progress-container"
+              data-progress-ms="{{ current_track.progress_ms }}"
+              data-duration-ms="{{ current_track.duration_ms }}"
+              data-is-playing="{{ 'true' if current_track.is_playing else 'false' }}"
+            >
+              <span class="progress-time" id="progress-current-time">{{ current_track.progress_str }}</span>
+              <div class="progress-bar-track">
+                <div
+                  class="progress-bar-fill"
+                  id="progress-bar-fill"
+                  style="width: {{ current_track.progress_percent }}%;"
+                ></div>
+              </div>
+              <span class="progress-time">{{ current_track.duration_str }}</span>
+            </div>
             <div class="button-group">
               <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
               <button
