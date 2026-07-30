@@ -323,18 +323,67 @@
         transform: translateY(-1px);
       }
 
-      /* --- RECENTLY PLAYED GRID --- */
-      .section-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 700;
+      /* --- TAB NAVIGATION & FILTERS --- */
+      .tab-nav-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         border-bottom: 1px solid var(--card-border);
-        padding-bottom: 12px;
         margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .tab-group {
+        display: flex;
+        gap: 8px;
+      }
+      .tab-btn {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 10px 18px;
+        background: transparent;
+        color: var(--text-secondary);
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .tab-btn:hover {
         color: var(--text-primary);
-        letter-spacing: -0.01em;
+      }
+      .tab-btn.active {
+        color: var(--spotify-green);
+        border-bottom-color: var(--spotify-green);
       }
 
+      .time-range-group {
+        display: flex;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 4px;
+        border-radius: 20px;
+        border: 1px solid var(--card-border);
+      }
+      .time-range-btn {
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 5px 14px;
+        border-radius: 16px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .time-range-btn.active {
+        background: var(--spotify-green);
+        color: #000000;
+        font-weight: 700;
+        box-shadow: 0 2px 8px var(--spotify-green-glow);
+      }
+
+      /* --- RECENTLY PLAYED & TOP GRID --- */
       .grid-container {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -352,6 +401,7 @@
         flex-direction: column;
         transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
         box-sizing: border-box;
+        position: relative;
       }
 
       .card:hover {
@@ -368,6 +418,7 @@
         overflow: hidden;
         margin-bottom: 12px;
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        position: relative;
       }
 
       .card img {
@@ -380,6 +431,24 @@
       .card:hover img {
         transform: scale(1.06);
       }
+
+      /* Rank Badges */
+      .rank-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 0.85rem;
+        padding: 2px 10px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      }
+      .rank-1 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000000; }
+      .rank-2 { background: linear-gradient(135deg, #e0e0e0, #909090); color: #000000; }
+      .rank-3 { background: linear-gradient(135deg, #cd7f32, #8b4513); color: #ffffff; }
+      .rank-other { background: rgba(0, 0, 0, 0.75); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); }
 
       /* 均等な高さ揃えのための固定行高さ設定 */
       .card h3 {
@@ -464,6 +533,15 @@
         box-shadow: 0 4px 12px var(--spotify-green-glow);
       }
 
+      /* Loading indicator */
+      .loading-message {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 40px 0;
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+      }
+
       /* Toast */
       #toast {
         visibility: hidden;
@@ -492,6 +570,172 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
+      // オンデマンド＆セッション内メモリキャッシュ（無駄な API 叩きを 100% 防止）
+      const _topTracksCache = {};
+      const _topArtistsCache = {};
+
+      let currentTab = 'recent'; // 'recent', 'top_tracks', 'top_artists'
+      let currentTimeRange = 'short_term'; // 'short_term', 'medium_term', 'long_term'
+
+      function switchTab(tabName) {
+        currentTab = tabName;
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        const timeRangeGroup = document.getElementById('time-range-group');
+        const recentGrid = document.getElementById('recent-grid');
+        const topTracksGrid = document.getElementById('top-tracks-grid');
+        const topArtistsGrid = document.getElementById('top-artists-grid');
+
+        if (tabName === 'recent') {
+          timeRangeGroup.style.display = 'none';
+          recentGrid.style.display = 'grid';
+          topTracksGrid.style.display = 'none';
+          topArtistsGrid.style.display = 'none';
+        } else if (tabName === 'top_tracks') {
+          timeRangeGroup.style.display = 'flex';
+          recentGrid.style.display = 'none';
+          topTracksGrid.style.display = 'grid';
+          topArtistsGrid.style.display = 'none';
+          loadTopTracks(currentTimeRange);
+        } else if (tabName === 'top_artists') {
+          timeRangeGroup.style.display = 'flex';
+          recentGrid.style.display = 'none';
+          topTracksGrid.style.display = 'none';
+          topArtistsGrid.style.display = 'grid';
+          loadTopArtists(currentTimeRange);
+        }
+      }
+
+      function switchTimeRange(timeRange) {
+        currentTimeRange = timeRange;
+        document.querySelectorAll('.time-range-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.range === timeRange);
+        });
+
+        if (currentTab === 'top_tracks') {
+          loadTopTracks(timeRange);
+        } else if (currentTab === 'top_artists') {
+          loadTopArtists(timeRange);
+        }
+      }
+
+      async function loadTopTracks(timeRange) {
+        const container = document.getElementById('top-tracks-grid');
+        if (_topTracksCache[timeRange]) {
+          renderTopTracks(_topTracksCache[timeRange], container);
+          return;
+        }
+
+        container.innerHTML = '<div class="loading-message">🔥 ランキングデータを取得中...</div>';
+        try {
+          const res = await fetch(`/api/top_tracks?time_range=${timeRange}`);
+          const data = await res.json();
+          if (data.tracks) {
+            _topTracksCache[timeRange] = data.tracks;
+            renderTopTracks(data.tracks, container);
+          } else {
+            container.innerHTML = '<div class="loading-message">データの取得に失敗しました</div>';
+          }
+        } catch (err) {
+          console.error(err);
+          container.innerHTML = '<div class="loading-message">エラーが発生しました</div>';
+        }
+      }
+
+      function getRankBadgeClass(rank) {
+        if (rank === 1) return 'rank-1';
+        if (rank === 2) return 'rank-2';
+        if (rank === 3) return 'rank-3';
+        return 'rank-other';
+      }
+
+      function renderTopTracks(tracks, container) {
+        if (!tracks || tracks.length === 0) {
+          container.innerHTML = '<div class="loading-message">データがありません</div>';
+          return;
+        }
+
+        container.innerHTML = tracks.map(track => `
+          <div class="card">
+            <span class="rank-badge ${getRankBadgeClass(track.rank)}">#${track.rank}</span>
+            ${track.image_url ? `
+            <div class="card-img-wrapper">
+              <img src="${track.image_url}" alt="${track.album}" loading="lazy" />
+            </div>` : ''}
+            <h3>${track.name}</h3>
+            <p class="album-name">${track.album}</p>
+            <p class="artist-name">${track.artist}</p>
+            <div class="card-buttons">
+              <a href="${track.url}" target="_blank">Spotify で聴く ↗</a>
+              <button
+                class="copy-btn"
+                onclick="copyToClipboard('${escapeJs(track.name)}', '${escapeJs(track.artist)}', '${escapeJs(track.album)}', '${escapeJs(track.url)}', this)"
+              >
+                リンクをコピー
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async function loadTopArtists(timeRange) {
+        const container = document.getElementById('top-artists-grid');
+        if (_topArtistsCache[timeRange]) {
+          renderTopArtists(_topArtistsCache[timeRange], container);
+          return;
+        }
+
+        container.innerHTML = '<div class="loading-message">🎤 アーティストランキングを取得中...</div>';
+        try {
+          const res = await fetch(`/api/top_artists?time_range=${timeRange}`);
+          const data = await res.json();
+          if (data.artists) {
+            _topArtistsCache[timeRange] = data.artists;
+            renderTopArtists(data.artists, container);
+          } else {
+            container.innerHTML = '<div class="loading-message">データの取得に失敗しました</div>';
+          }
+        } catch (err) {
+          console.error(err);
+          container.innerHTML = '<div class="loading-message">エラーが発生しました</div>';
+        }
+      }
+
+      function renderTopArtists(artists, container) {
+        if (!artists || artists.length === 0) {
+          container.innerHTML = '<div class="loading-message">データがありません</div>';
+          return;
+        }
+
+        container.innerHTML = artists.map(artist => `
+          <div class="card">
+            <span class="rank-badge ${getRankBadgeClass(artist.rank)}">#${artist.rank}</span>
+            ${artist.image_url ? `
+            <div class="card-img-wrapper">
+              <img src="${artist.image_url}" alt="${artist.name}" loading="lazy" />
+            </div>` : ''}
+            <h3>${artist.name}</h3>
+            <p class="album-name">Genre: ${artist.genre}</p>
+            <p class="artist-name">Artist Rank #${artist.rank}</p>
+            <div class="card-buttons">
+              <a href="${artist.url}" target="_blank">Spotify で聴く ↗</a>
+              <button
+                class="copy-btn"
+                onclick="copyToClipboard('${escapeJs(artist.name)}', 'Artist', '${escapeJs(artist.genre)}', '${escapeJs(artist.url)}', this)"
+              >
+                リンクをコピー
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function escapeJs(str) {
+        return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      }
+
       function copyCanvasToClipboard(canvas, successToastMsg) {
         if (!navigator.clipboard) {
           showToast('お使いの接続環境 (http://) ではブラウザのクリップボード機能が制限されています');
@@ -499,7 +743,6 @@
         }
 
         try {
-          // Safari / WebKit / Chrome 対策: toBlob の Promise を ClipboardItem に同期的に渡す
           const blobPromise = new Promise((resolve, reject) => {
             canvas.toBlob((blob) => {
               if (blob) resolve(blob);
@@ -555,14 +798,16 @@
         showToast('履歴画像をコピー中...');
         const clone = wrapper.cloneNode(true);
 
-        // ヘッダーおよび NOW PLAYING カード（再生中/停止中問わず）をクローンから除去
         const header = clone.querySelector('.main-header');
         if (header) header.remove();
 
         const nowPlaying = clone.querySelector('#now-playing-capture');
         if (nowPlaying) nowPlaying.remove();
 
-        const grid = clone.querySelector('.grid-container');
+        const tabNav = clone.querySelector('.tab-nav-container');
+        if (tabNav) tabNav.remove();
+
+        const grid = clone.querySelector('.grid-container:not([style*="display: none"])') || clone.querySelector('#recent-grid');
         if (grid) {
           const cards = grid.querySelectorAll('.card');
           cards.forEach((card, index) => {
@@ -753,8 +998,22 @@
       </div>
       {% endif %}
 
-      <h2 class="section-title">Recently Played</h2>
-      <div class="grid-container">
+      <!-- TAB NAVIGATION & TIME RANGE FILTERS -->
+      <div class="tab-nav-container">
+        <div class="tab-group">
+          <button class="tab-btn active" data-tab="recent" onclick="switchTab('recent')">🕒 最近の再生</button>
+          <button class="tab-btn" data-tab="top_tracks" onclick="switchTab('top_tracks')">🔥 よく聴く曲 TOP 20</button>
+          <button class="tab-btn" data-tab="top_artists" onclick="switchTab('top_artists')">🎤 よく聴くアーティスト TOP 20</button>
+        </div>
+        <div class="time-range-group" id="time-range-group" style="display: none;">
+          <button class="time-range-btn active" data-range="short_term" onclick="switchTimeRange('short_term')">⚡️ 直近 4 週間</button>
+          <button class="time-range-btn" data-range="medium_term" onclick="switchTimeRange('medium_term')">📅 過去 6 ヶ月</button>
+          <button class="time-range-btn" data-range="long_term" onclick="switchTimeRange('long_term')">🏆 全期間</button>
+        </div>
+      </div>
+
+      <!-- RECENTLY PLAYED GRID -->
+      <div class="grid-container" id="recent-grid">
         {% for track in tracks %}
         <div class="card">
           {% if track.image_url %}
@@ -778,6 +1037,12 @@
         </div>
         {% endfor %}
       </div>
+
+      <!-- TOP TRACKS GRID (LAZY LOADED & CACHED) -->
+      <div class="grid-container" id="top-tracks-grid" style="display: none;"></div>
+
+      <!-- TOP ARTISTS GRID (LAZY LOADED & CACHED) -->
+      <div class="grid-container" id="top-artists-grid" style="display: none;"></div>
     </div>
   </body>
 </html>
