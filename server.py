@@ -22,6 +22,7 @@ SPOTIFY_CACHE_PATH = os.environ.get("SPOTIPY_CACHE_PATH", ".spotifycache")
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
 CACHE_TTL_SECONDS = 30
+DEFAULT_FAVICON_SVG = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>"
 
 # キャッシュ保存用ディレクトリの確保
 cache_dir = os.path.dirname(SPOTIFY_CACHE_PATH)
@@ -183,6 +184,11 @@ def init() -> bool:
         return False
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return redirect(DEFAULT_FAVICON_SVG)
+
+
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
     sp_oauth = None
@@ -227,7 +233,7 @@ def setup():
             if response_url and sp_oauth:
                 try:
                     code = sp_oauth.parse_response_code(response_url.strip())
-                    token_info = sp_oauth.get_access_token(code, as_dict=True)
+                    token_info = sp_oauth.get_access_token(code, as_dict=False)
                     if token_info:
                         session.pop("setup_authenticated", None)
                         session.pop("setup_pin", None)
