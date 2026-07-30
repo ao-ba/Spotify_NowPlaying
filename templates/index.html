@@ -339,7 +339,7 @@
       }
       .tab-btn {
         font-family: 'Outfit', sans-serif;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         font-weight: 700;
         padding: 10px 18px;
         background: transparent;
@@ -570,7 +570,7 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
-      // オンデマンド＆セッション内メモリキャッシュ（無駄な API 叩きを 100% 防止）
+      // オンデマンド＆セッション内メモリキャッシュ
       const _topTracksCache = {};
       const _topArtistsCache = {};
 
@@ -628,7 +628,7 @@
           return;
         }
 
-        container.innerHTML = '<div class="loading-message">🔥 ランキングデータを取得中...</div>';
+        container.innerHTML = '<div class="loading-message">🔥 Loading Top Tracks...</div>';
         try {
           const res = await fetch(`/api/top_tracks?time_range=${timeRange}`);
           const data = await res.json();
@@ -636,11 +636,11 @@
             _topTracksCache[timeRange] = data.tracks;
             renderTopTracks(data.tracks, container);
           } else {
-            container.innerHTML = '<div class="loading-message">データの取得に失敗しました</div>';
+            container.innerHTML = '<div class="loading-message">Failed to load data</div>';
           }
         } catch (err) {
           console.error(err);
-          container.innerHTML = '<div class="loading-message">エラーが発生しました</div>';
+          container.innerHTML = '<div class="loading-message">Error loading tracks</div>';
         }
       }
 
@@ -653,7 +653,7 @@
 
       function renderTopTracks(tracks, container) {
         if (!tracks || tracks.length === 0) {
-          container.innerHTML = '<div class="loading-message">データがありません</div>';
+          container.innerHTML = '<div class="loading-message">No tracks found</div>';
           return;
         }
 
@@ -668,12 +668,12 @@
             <p class="album-name">${track.album}</p>
             <p class="artist-name">${track.artist}</p>
             <div class="card-buttons">
-              <a href="${track.url}" target="_blank">Spotify で聴く ↗</a>
+              <a href="${track.url}" target="_blank">Listen on Spotify ↗</a>
               <button
                 class="copy-btn"
                 onclick="copyToClipboard('${escapeJs(track.name)}', '${escapeJs(track.artist)}', '${escapeJs(track.album)}', '${escapeJs(track.url)}', this)"
               >
-                リンクをコピー
+                Copy Link
               </button>
             </div>
           </div>
@@ -687,7 +687,7 @@
           return;
         }
 
-        container.innerHTML = '<div class="loading-message">🎤 アーティストランキングを取得中...</div>';
+        container.innerHTML = '<div class="loading-message">🎤 Loading Top Artists...</div>';
         try {
           const res = await fetch(`/api/top_artists?time_range=${timeRange}`);
           const data = await res.json();
@@ -695,17 +695,17 @@
             _topArtistsCache[timeRange] = data.artists;
             renderTopArtists(data.artists, container);
           } else {
-            container.innerHTML = '<div class="loading-message">データの取得に失敗しました</div>';
+            container.innerHTML = '<div class="loading-message">Failed to load data</div>';
           }
         } catch (err) {
           console.error(err);
-          container.innerHTML = '<div class="loading-message">エラーが発生しました</div>';
+          container.innerHTML = '<div class="loading-message">Error loading artists</div>';
         }
       }
 
       function renderTopArtists(artists, container) {
         if (!artists || artists.length === 0) {
-          container.innerHTML = '<div class="loading-message">データがありません</div>';
+          container.innerHTML = '<div class="loading-message">No artists found</div>';
           return;
         }
 
@@ -720,12 +720,12 @@
             <p class="album-name">Genre: ${artist.genre}</p>
             <p class="artist-name">Artist Rank #${artist.rank}</p>
             <div class="card-buttons">
-              <a href="${artist.url}" target="_blank">Spotify で聴く ↗</a>
+              <a href="${artist.url}" target="_blank">Listen on Spotify ↗</a>
               <button
                 class="copy-btn"
                 onclick="copyToClipboard('${escapeJs(artist.name)}', 'Artist', '${escapeJs(artist.genre)}', '${escapeJs(artist.url)}', this)"
               >
-                リンクをコピー
+                Copy Link
               </button>
             </div>
           </div>
@@ -738,7 +738,7 @@
 
       function copyCanvasToClipboard(canvas, successToastMsg) {
         if (!navigator.clipboard) {
-          showToast('お使いの接続環境 (http://) ではブラウザのクリップボード機能が制限されています');
+          showToast('Clipboard API is restricted on non-HTTPS connection.');
           return;
         }
 
@@ -763,31 +763,31 @@
                 showToast(successToastMsg);
               }).catch((e) => {
                 console.error('Fallback clipboard write error:', e);
-                showToast('クリップボードコピー失敗 (HTTPS接続推奨)');
+                showToast('Clipboard write failed.');
               });
             });
           } else {
-            showToast('お使いのブラウザは画像クリップボード非対応です');
+            showToast('Browser image clipboard copy is not supported.');
           }
         } catch (err) {
           console.error(err);
-          showToast('コピー処理中にエラーが発生しました');
+          showToast('An error occurred during copy.');
         }
       }
 
       function captureElement(elementId) {
         const element = document.getElementById(elementId);
         if (!element) return;
-        showToast('画像をコピー中...');
+        showToast('Capturing image...');
         html2canvas(element, {
           backgroundColor: '#0d0d0e',
           scale: 2,
           useCORS: true,
         }).then((canvas) => {
-          copyCanvasToClipboard(canvas, '再生中トラック画像をコピーしました！');
+          copyCanvasToClipboard(canvas, 'Now Playing image copied!');
         }).catch((err) => {
           console.error(err);
-          showToast('画像生成エラーが発生しました');
+          showToast('Image generation error.');
         });
       }
 
@@ -795,7 +795,7 @@
         const wrapper = document.getElementById(elementId);
         if (!wrapper) return;
 
-        showToast('履歴画像をコピー中...');
+        showToast('Capturing history image...');
         const clone = wrapper.cloneNode(true);
 
         const header = clone.querySelector('.main-header');
@@ -832,11 +832,11 @@
           useCORS: true,
         }).then((canvas) => {
           if (document.body.contains(clone)) document.body.removeChild(clone);
-          copyCanvasToClipboard(canvas, '再生履歴画像をコピーしました！');
+          copyCanvasToClipboard(canvas, 'History image copied!');
         }).catch((err) => {
           console.error(err);
           if (document.body.contains(clone)) document.body.removeChild(clone);
-          showToast('画像生成エラーが発生しました');
+          showToast('Image generation error.');
         });
       }
 
@@ -845,7 +845,7 @@
         const textToCopy = `${trackName} / ${artistName} - ${albumName}\n${trackUrl}`;
         try {
           await navigator.clipboard.writeText(textToCopy);
-          btnElement.innerText = "コピー完了";
+          btnElement.innerText = "Copied!";
           btnElement.style.background = "#1db954";
           btnElement.style.color = "black";
           setTimeout(() => {
@@ -922,11 +922,11 @@
         <div class="header-actions">
           {% if current_track %}
           <button class="action-btn" onclick="captureElement('now-playing-capture')">
-            📸 再生中を画像コピー
+            📸 Copy Now Playing
           </button>
           {% endif %}
           <button class="action-btn" onclick="captureHistoryThreeRows('wrapper')">
-            📷 履歴を画像コピー
+            📷 Copy History
           </button>
         </div>
       </header>
@@ -969,12 +969,12 @@
               <span class="progress-time">{{ current_track.duration_str }}</span>
             </div>
             <div class="button-group">
-              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く ↗</a>
+              <a href="{{ current_track.url }}" target="_blank">Listen on Spotify ↗</a>
               <button
                 class="copy-btn"
                 onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
               >
-                リンクをコピー
+                Copy Link
               </button>
             </div>
           </div>
@@ -991,8 +991,8 @@
             <span class="empty-music-icon">🎵</span>
           </div>
           <div class="now-playing-info">
-            <h1 class="empty-title">現在再生中の曲はありません</h1>
-            <p class="empty-subtitle">Spotify アプリで楽曲を再生するとリアルタイムでダッシュボードに反映されます。</p>
+            <h1 class="empty-title">Nothing Currently Playing</h1>
+            <p class="empty-subtitle">Play a song on Spotify to see real-time updates.</p>
           </div>
         </div>
       </div>
@@ -1001,14 +1001,14 @@
       <!-- TAB NAVIGATION & TIME RANGE FILTERS -->
       <div class="tab-nav-container">
         <div class="tab-group">
-          <button class="tab-btn active" data-tab="recent" onclick="switchTab('recent')">🕒 最近の再生</button>
-          <button class="tab-btn" data-tab="top_tracks" onclick="switchTab('top_tracks')">🔥 よく聴く曲 TOP 20</button>
-          <button class="tab-btn" data-tab="top_artists" onclick="switchTab('top_artists')">🎤 よく聴くアーティスト TOP 20</button>
+          <button class="tab-btn active" data-tab="recent" onclick="switchTab('recent')">🕒 Recently Played</button>
+          <button class="tab-btn" data-tab="top_tracks" onclick="switchTab('top_tracks')">🔥 Top Tracks</button>
+          <button class="tab-btn" data-tab="top_artists" onclick="switchTab('top_artists')">🎤 Top Artists</button>
         </div>
         <div class="time-range-group" id="time-range-group" style="display: none;">
-          <button class="time-range-btn active" data-range="short_term" onclick="switchTimeRange('short_term')">⚡️ 直近 4 週間</button>
-          <button class="time-range-btn" data-range="medium_term" onclick="switchTimeRange('medium_term')">📅 過去 6 ヶ月</button>
-          <button class="time-range-btn" data-range="long_term" onclick="switchTimeRange('long_term')">🏆 全期間</button>
+          <button class="time-range-btn active" data-range="short_term" onclick="switchTimeRange('short_term')">⚡️ Last 4 Weeks</button>
+          <button class="time-range-btn" data-range="medium_term" onclick="switchTimeRange('medium_term')">📅 Last 6 Months</button>
+          <button class="time-range-btn" data-range="long_term" onclick="switchTimeRange('long_term')">🏆 All Time</button>
         </div>
       </div>
 
@@ -1026,12 +1026,12 @@
           <p class="artist-name">{{ track.artist }}</p>
           <p class="played-at">🕒 {{ track.played_at }}</p>
           <div class="card-buttons">
-            <a href="{{ track.url }}" target="_blank">Spotify で聴く ↗</a>
+            <a href="{{ track.url }}" target="_blank">Listen on Spotify ↗</a>
             <button
               class="copy-btn"
               onclick="copyToClipboard('{{ track.name }}', '{{ track.artist }}', '{{ track.album }}', '{{ track.url }}', this)"
             >
-              リンクをコピー
+              Copy Link
             </button>
           </div>
         </div>
