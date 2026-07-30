@@ -1,4 +1,7 @@
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import spotipy
@@ -14,7 +17,29 @@ SPOTIFY_SCOPE = "user-read-currently-playing user-read-recently-played playlist-
 SPOTIFY_CACHE_PATH = ".spotifycache"
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
+CACHE_TTL_SECONDS = 30
 
+
+class _TTLCache:
+    def __init__(self, ttl: float):
+        self._ttl = ttl
+        self._lock = threading.Lock()
+        self._value = None
+        self._expires_at = 0.0
+
+    def get(self):
+        with self._lock:
+            if self._value is not None and time.monotonic() < self._expires_at:
+                return self._value
+        return None
+
+    def set(self, value):
+        with self._lock:
+            self._value = value
+            self._expires_at = time.monotonic() + self._ttl
+
+
+_spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
 auth_manager = None
 
 
@@ -55,13 +80,12 @@ def ensure_auth_manager(interactive=False, force_recreate=False):
         auth_manager.get_access_token(code, as_dict=False)
         print("\n" + "*" * 60)
         print(" Authentication Success. '.spotifycache' has been created.")
-        print(" Setup complete. The program will now exit.")
-        print(" Next time, it will start automatically without this step.")
-        print("*" * 60 + "\n")
-        sys.exit(0)
+        print(" Setup complete. The server will now start.")
+        print("*" + "*" * 59 + "\n")
+        return auth_manager
     except Exception as error:
         print(f"\nError: {error}")
-        sys.exit(1)
+        raise
 
 
 def create_spotify_client(force_recreate_auth=False):
@@ -91,8 +115,13 @@ def fetch_spotify_data():
     for attempt in range(SPOTIFY_API_RETRIES):
         try:
             client = create_spotify_client(force_recreate_auth=attempt > 0)
-            current_track_raw = client.current_user_playing_track()
-            history = client.current_user_recently_played(limit=50)
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                future_track = executor.submit(client.current_user_playing_track)
+                future_history = executor.submit(
+                    client.current_user_recently_played, limit=50
+                )
+                current_track_raw = future_track.result()
+                history = future_history.result()
             return current_track_raw, history
         except Exception as error:
             last_error = error
@@ -111,16 +140,22 @@ def pick_album_image(images, preferred_index=0):
 
 def init():
     ensure_auth_manager(interactive=True)
+    return True
 
 
 def get_history():
-    try:
-        current_track_raw, history = fetch_spotify_data()
-    except RuntimeError as error:
-        return f"Authentication Error: {error}", 401
-    except Exception as error:
-        status_code = 503 if should_retry_spotify_error(error) else 500
-        return f"Spotify API Error: {error}", status_code
+    cached = _spotify_cache.get()
+    if cached is not None:
+        current_track_raw, history = cached
+    else:
+        try:
+            current_track_raw, history = fetch_spotify_data()
+        except RuntimeError as error:
+            return f"Authentication Error: {error}", 401
+        except Exception as error:
+            status_code = 503 if should_retry_spotify_error(error) else 500
+            return f"Spotify API Error: {error}", status_code
+        _spotify_cache.set((current_track_raw, history))
 
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):

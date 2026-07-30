@@ -424,7 +424,7 @@
         {% for track in tracks %}
         <div class="card">
           {% if track.image_url %}
-          <img src="{{ track.image_url }}" alt="{{ track.album }}" />
+          <img src="{{ track.image_url }}" alt="{{ track.album }}" loading="lazy" />
           {% endif %}
           <h3>{{ track.name }}</h3>
           <p class="album-name">{{ track.album }}</p>

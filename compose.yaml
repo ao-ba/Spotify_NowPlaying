@@ -1,14 +1,11 @@
 services:
   dashboard:
-    #build: .
+    build: .
     image: ghcr.io/ao-ba/spotify_nowplaying:latest
     container_name: dashboard
     ports:
       - "5000:5000"
-    environment:
-      - SPOTIPY_CLIENT_ID=<your_client_id>
-      - SPOTIPY_CLIENT_SECRET=<your_client_secret>
-      - SPOTIPY_REDIRECT_URI=<your_redirect_url>
+    env_file: "./.env"
     volumes:
       - .:/app
     restart: always
