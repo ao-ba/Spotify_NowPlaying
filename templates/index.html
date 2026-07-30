@@ -474,23 +474,43 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
       function copyCanvasToClipboard(canvas, successToastMsg) {
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            showToast('画像の生成に失敗しました');
-            return;
-          }
-          if (navigator.clipboard && window.ClipboardItem) {
-            const item = new ClipboardItem({ 'image/png': blob });
+        if (!navigator.clipboard) {
+          showToast('お使いの接続環境 (http://) ではブラウザのクリップボード機能が制限されています');
+          return;
+        }
+
+        try {
+          // Safari / WebKit / Chrome 対策: toBlob の Promise を ClipboardItem に同期的に渡す
+          const blobPromise = new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas blob generation failed'));
+            }, 'image/png');
+          });
+
+          if (typeof ClipboardItem !== 'undefined') {
+            const item = new ClipboardItem({ 'image/png': blobPromise });
             navigator.clipboard.write([item]).then(() => {
               showToast(successToastMsg);
             }).catch((err) => {
-              console.error('Clipboard write error:', err);
-              showToast('クリップボードの書き込みに失敗しました');
+              console.error('Clipboard write promise failed:', err);
+              blobPromise.then((blob) => {
+                const fallbackItem = new ClipboardItem({ 'image/png': blob });
+                return navigator.clipboard.write([fallbackItem]);
+              }).then(() => {
+                showToast(successToastMsg);
+              }).catch((e) => {
+                console.error('Fallback clipboard write error:', e);
+                showToast('クリップボードコピー失敗 (HTTPS接続推奨)');
+              });
             });
           } else {
-            showToast('お使いのブラウザはクリップボード画像コピー非対応です');
+            showToast('お使いのブラウザは画像クリップボード非対応です');
           }
-        }, 'image/png');
+        } catch (err) {
+          console.error(err);
+          showToast('コピー処理中にエラーが発生しました');
+        }
       }
 
       function captureElement(elementId) {
