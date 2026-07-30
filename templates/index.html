@@ -473,22 +473,56 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function processCanvasExport(canvas, filename, successLabel) {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showToast('画像の生成に失敗しました');
+            return;
+          }
+
+          // Secure Context (HTTPS / localhost) で Clipboard API が有効な場合
+          if (navigator.clipboard && window.ClipboardItem) {
+            const item = new ClipboardItem({ 'image/png': blob });
+            navigator.clipboard.write([item]).then(() => {
+              showToast(successLabel + 'をクリップボードにコピーしました！');
+            }).catch((err) => {
+              console.warn('Clipboard write restricted, downloading file instead:', err);
+              downloadBlob(blob, filename);
+              showToast(successLabel + '画像をダウンロードしました！');
+            });
+          } else {
+            // 非セキュアコンテキスト (http://192.168.x.x 等) の場合の自動ファイル保存フォールバック
+            downloadBlob(blob, filename);
+            showToast(successLabel + '画像をダウンロードしました！');
+          }
+        }, 'image/png');
+      }
+
       function captureElement(elementId) {
         const element = document.getElementById(elementId);
         if (!element) return;
+        showToast('画像を生成中...');
         html2canvas(element, {
           backgroundColor: '#0d0d0e',
           scale: 2,
           useCORS: true,
+          allowTaint: true,
         }).then((canvas) => {
-          canvas.toBlob((blob) => {
-            if (navigator.clipboard && window.ClipboardItem) {
-              const item = new ClipboardItem({ 'image/png': blob });
-              navigator.clipboard.write([item]).then(() => {
-                showToast('再生中トラック画像をコピーしました！');
-              });
-            }
-          });
+          processCanvasExport(canvas, 'spotify-nowplaying.png', '再生中トラック画像');
+        }).catch((err) => {
+          console.error(err);
+          showToast('画像出力エラーが発生しました');
         });
       }
 
@@ -496,6 +530,7 @@
         const wrapper = document.getElementById(elementId);
         if (!wrapper) return;
 
+        showToast('履歴画像を生成中...');
         const clone = wrapper.cloneNode(true);
 
         // ヘッダーおよび NOW PLAYING カード（再生中/停止中問わず）をクローンから除去
@@ -513,9 +548,12 @@
           });
         }
 
-        clone.style.position = 'absolute';
-        clone.style.top = '-9999px';
-        clone.style.left = '-9999px';
+        clone.style.position = 'fixed';
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.zIndex = '-99999';
+        clone.style.opacity = '0.01';
+        clone.style.pointerEvents = 'none';
         clone.style.width = wrapper.offsetWidth + 'px';
         clone.style.padding = '20px';
         document.body.appendChild(clone);
@@ -524,19 +562,10 @@
           backgroundColor: '#0d0d0e',
           scale: 2,
           useCORS: true,
+          allowTaint: true,
         }).then((canvas) => {
           if (document.body.contains(clone)) document.body.removeChild(clone);
-          canvas.toBlob((blob) => {
-            if (navigator.clipboard && window.ClipboardItem) {
-              const item = new ClipboardItem({ 'image/png': blob });
-              navigator.clipboard.write([item]).then(() => {
-                showToast('再生履歴画像をコピーしました！');
-              }).catch((err) => {
-                console.error(err);
-                showToast('クリップボードへのコピーに失敗しました');
-              });
-            }
-          });
+          processCanvasExport(canvas, 'spotify-history.png', '再生履歴画像');
         }).catch((err) => {
           console.error(err);
           if (document.body.contains(clone)) document.body.removeChild(clone);
