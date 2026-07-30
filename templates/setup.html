@@ -140,13 +140,12 @@
       {% endif %}
 
       <form method="POST" action="/setup">
-        {% if requires_pin %}
         <div class="step">
           <div class="step-title">
             <span class="step-number">🔒</span> セキュリティ PIN の入力
           </div>
           <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
-            環境変数 <code>SETUP_PIN</code> で設定された PIN コードを入力してください。
+            環境変数 <code>SETUP_PIN</code> またはコンテナログ (<code>kubectl logs</code> / <code>docker logs</code>) に出力された PIN コードを入力してください。
           </p>
           <input
             type="password"
@@ -156,7 +155,6 @@
             required
           />
         </div>
-        {% endif %}
 
         <div class="step">
           <div class="step-title">

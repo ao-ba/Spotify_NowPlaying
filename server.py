@@ -1,4 +1,6 @@
 import os
+import secrets
+import string
 import sys
 import threading
 import time
@@ -19,7 +21,28 @@ SPOTIFY_CACHE_PATH = ".spotifycache"
 SPOTIFY_TIMEOUT_SECONDS = 10
 SPOTIFY_API_RETRIES = 2
 CACHE_TTL_SECONDS = 30
-SETUP_PIN = os.environ.get("SETUP_PIN")
+
+
+def _init_setup_pin():
+    env_pin = os.environ.get("SETUP_PIN")
+    if env_pin:
+        print("[SECURITY] Using custom SETUP_PIN from environment variable.", flush=True)
+        return env_pin
+
+    alphabet = string.ascii_letters + string.digits
+    random_pin = "".join(secrets.choice(alphabet) for _ in range(12))
+
+    print("\n" + "=" * 70, flush=True)
+    print("[SECURITY] SETUP_PIN environment variable was not specified.", flush=True)
+    print("[SECURITY] A temporary random SETUP_PIN has been generated for setup:\n", flush=True)
+    print(f"    SETUP_PIN = {random_pin}\n", flush=True)
+    print("[SECURITY] Use this PIN when accessing the /setup page in your browser.", flush=True)
+    print("=" * 70 + "\n", flush=True)
+
+    return random_pin
+
+
+SETUP_PIN = _init_setup_pin()
 
 
 class _TTLCache:
@@ -118,7 +141,6 @@ def pick_album_image(images, preferred_index=0):
 
 
 def init():
-    # 後方互換用: 初期化チェック
     sp_oauth = create_auth_manager()
     token = sp_oauth.validate_token(sp_oauth.get_cached_token())
     return token is not None
@@ -138,21 +160,19 @@ def setup():
     error = None
 
     if request.method == "POST":
-        # 2. SETUP_PIN が設定されている場合は PIN コードを検証
-        if SETUP_PIN:
-            input_pin = request.form.get("pin")
-            if input_pin != SETUP_PIN:
-                error = "PIN コードが一致しません。"
-                auth_url = sp_oauth.get_authorize_url()
-                return (
-                    render_template(
-                        "setup.html",
-                        auth_url=auth_url,
-                        error=error,
-                        requires_pin=bool(SETUP_PIN),
-                    ),
-                    401,
-                )
+        input_pin = request.form.get("pin")
+        if input_pin != SETUP_PIN:
+            error = "PIN コードが一致しません。"
+            auth_url = sp_oauth.get_authorize_url()
+            return (
+                render_template(
+                    "setup.html",
+                    auth_url=auth_url,
+                    error=error,
+                    requires_pin=True,
+                ),
+                401,
+            )
 
         response_url = request.form.get("response_url")
         if response_url:
@@ -170,7 +190,7 @@ def setup():
         "setup.html",
         auth_url=auth_url,
         error=error,
-        requires_pin=bool(SETUP_PIN),
+        requires_pin=True,
     )
 
 
@@ -189,7 +209,6 @@ def callback():
 
 @app.route("/", methods=["GET"])
 def hist():
-    # キャッシュチェック。未認証なら /setup へリダイレクト
     sp_oauth = create_auth_manager()
     token_info = sp_oauth.validate_token(sp_oauth.get_cached_token())
     if not token_info:
