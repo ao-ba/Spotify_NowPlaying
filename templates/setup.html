@@ -139,7 +139,10 @@
       <div class="error-msg">⚠️ {{ error }}</div>
       {% endif %}
 
+      {% if not is_authenticated %}
+      <!-- 段階1: PIN コード入力フォーム -->
       <form method="POST" action="/setup">
+        <input type="hidden" name="action" value="verify_pin" />
         <div class="step">
           <div class="step-title">
             <span class="step-number">🔒</span> セキュリティ PIN の入力
@@ -153,21 +156,31 @@
             class="input-url"
             placeholder="PIN コードを入力"
             required
+            autofocus
           />
+          <button type="submit" class="btn-submit">
+            認証して進む
+          </button>
         </div>
+      </form>
 
-        <div class="step">
-          <div class="step-title">
-            <span class="step-number">1</span> Spotify アカウントの認可
-          </div>
-          <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
-            下のボタンをクリックして Spotify の認証ページを開き、アクセスを許可してください。
-          </p>
-          <a href="{{ auth_url }}" target="_blank" class="btn-spotify">
-            Spotify で認証する ↗
-          </a>
+      {% else %}
+
+      <!-- 段階2: PIN認証成功後にのみ表示される Spotify 認可＆設定フォーム -->
+      <div class="step">
+        <div class="step-title">
+          <span class="step-number">1</span> Spotify アカウントの認可
         </div>
+        <p style="font-size: 0.85rem; color: #b3b3b3; margin-top: 0">
+          下のボタンをクリックして Spotify の認証ページを開き、アクセスを許可してください。
+        </p>
+        <a href="{{ auth_url }}" target="_blank" class="btn-spotify">
+          Spotify で認証する ↗
+        </a>
+      </div>
 
+      <form method="POST" action="/setup">
+        <input type="hidden" name="action" value="submit_url" />
         <div class="step">
           <div class="step-title">
             <span class="step-number">2</span> リダイレクト URL の貼り付け
@@ -187,6 +200,7 @@
           </button>
         </div>
       </form>
+      {% endif %}
     </div>
   </body>
 </html>

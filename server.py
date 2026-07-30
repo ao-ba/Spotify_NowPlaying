@@ -8,12 +8,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import spotipy
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, session, url_for
 from requests.exceptions import RequestException, Timeout
 from spotipy import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 app.json.ensure_ascii = False
 
 SPOTIFY_SCOPE = "user-read-currently-playing user-read-recently-played playlist-modify-public"
@@ -158,39 +159,57 @@ def setup():
         )
 
     error = None
+    is_pin_authenticated = session.get("setup_authenticated", False)
 
     if request.method == "POST":
-        input_pin = request.form.get("pin")
-        if input_pin != SETUP_PIN:
-            error = "PIN コードが一致しません。"
-            auth_url = sp_oauth.get_authorize_url()
-            return (
-                render_template(
-                    "setup.html",
-                    auth_url=auth_url,
-                    error=error,
-                    requires_pin=True,
-                ),
-                401,
-            )
+        action = request.form.get("action")
 
-        response_url = request.form.get("response_url")
-        if response_url:
-            try:
-                code = sp_oauth.parse_response_code(response_url.strip())
-                sp_oauth.get_access_token(code, as_dict=False)
-                return redirect(url_for("hist"))
-            except Exception as e:
-                error = str(e)
-        else:
-            error = "URLを入力してください。"
+        # 段階1: PIN コードの検証
+        if action == "verify_pin" or not is_pin_authenticated:
+            input_pin = request.form.get("pin")
+            if input_pin == SETUP_PIN:
+                session["setup_authenticated"] = True
+                is_pin_authenticated = True
+            else:
+                error = "PIN コードが一致しません。"
+                return (
+                    render_template(
+                        "setup.html",
+                        is_authenticated=False,
+                        error=error,
+                    ),
+                    401,
+                )
 
+        # 段階2: URL の送信とトークン引き換え
+        if action == "submit_url" and is_pin_authenticated:
+            response_url = request.form.get("response_url")
+            if response_url:
+                try:
+                    code = sp_oauth.parse_response_code(response_url.strip())
+                    sp_oauth.get_access_token(code, as_dict=False)
+                    session.pop("setup_authenticated", None)
+                    return redirect(url_for("hist"))
+                except Exception as e:
+                    error = str(e)
+            else:
+                error = "URLを入力してください。"
+
+    # PIN 未認証の場合: 認証リンク (auth_url) は一切生成せず、PIN 入力画面のみ描画
+    if not is_pin_authenticated:
+        return render_template(
+            "setup.html",
+            is_authenticated=False,
+            error=error,
+        )
+
+    # PIN 認証成功済みの場合のみ: Spotify 認可URL を生成して表示
     auth_url = sp_oauth.get_authorize_url()
     return render_template(
         "setup.html",
+        is_authenticated=True,
         auth_url=auth_url,
         error=error,
-        requires_pin=True,
     )
 
 
