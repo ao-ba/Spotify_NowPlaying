@@ -418,18 +418,20 @@
         }, 2500);
       }
 
-      (function initSeekBarTicker() {
+      document.addEventListener('DOMContentLoaded', function initSeekBarTicker() {
         const container = document.getElementById('progress-container');
         if (!container) return;
 
         const currentEl = document.getElementById('progress-current-time');
         const fillEl = document.getElementById('progress-bar-fill');
 
-        let progressMs = parseInt(container.dataset.progressMs || '0', 10);
+        const startProgressMs = parseInt(container.dataset.progressMs || '0', 10);
         const durationMs = parseInt(container.dataset.durationMs || '0', 10);
         const isPlaying = container.dataset.isPlaying === 'true';
 
         if (!isPlaying || durationMs <= 0) return;
+
+        const startTime = Date.now();
 
         function formatTime(ms) {
           const totalSecs = Math.max(0, Math.floor(ms / 1000));
@@ -438,15 +440,21 @@
           return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
         }
 
-        setInterval(() => {
-          if (progressMs < durationMs) {
-            progressMs += 1000;
-            const percent = Math.min(100, (progressMs / durationMs) * 100);
-            if (fillEl) fillEl.style.width = percent.toFixed(1) + '%';
-            if (currentEl) currentEl.innerText = formatTime(progressMs);
+        function update() {
+          const elapsed = Date.now() - startTime;
+          const currentMs = Math.min(durationMs, startProgressMs + elapsed);
+          const percent = Math.min(100, (currentMs / durationMs) * 100);
+
+          if (fillEl) fillEl.style.width = percent.toFixed(2) + '%';
+          if (currentEl) currentEl.innerText = formatTime(currentMs);
+
+          if (currentMs < durationMs) {
+            requestAnimationFrame(update);
           }
-        }, 1000);
-      })();
+        }
+
+        requestAnimationFrame(update);
+      });
     </script>
     <div id="toast">Copied.</div>
     <div id="screenshot-menu-container">
