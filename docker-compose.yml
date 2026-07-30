@@ -6,9 +6,9 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - SPOTIPY_CLIENT_ID=<your_client_id>
-      - SPOTIPY_CLIENT_SECRET=<your_client_secret>
-      - SPOTIPY_REDIRECT_URI=<your_redirect_url>
+      - SPOTIPY_CLIENT_ID=ec8bcc3762584ce889a7a3867ff2d301
+      - SPOTIPY_CLIENT_SECRET=86162d7d94ef41739d9b6529e1573036
+      - SPOTIPY_REDIRECT_URI=https://127.0.0.1/callback
     volumes:
       - .:/app
     restart: always
