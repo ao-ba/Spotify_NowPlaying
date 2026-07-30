@@ -118,6 +118,11 @@
         letter-spacing: 0.08em;
         box-shadow: 0 4px 14px var(--spotify-green-glow);
       }
+      .badge-paused {
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--text-secondary);
+        box-shadow: none;
+      }
 
       /* Equalizer Animation */
       .equalizer {
@@ -159,6 +164,39 @@
 
       .now-playing-container:hover {
         border-color: rgba(29, 185, 84, 0.3);
+      }
+
+      /* Empty State */
+      .empty-state-container {
+        padding: 36px 28px;
+      }
+      .empty-icon-wrapper {
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--card-border);
+        flex-shrink: 0;
+      }
+      .empty-music-icon {
+        font-size: 2.8rem;
+        animation: pulse-icon 2.5s ease-in-out infinite alternate;
+      }
+      @keyframes pulse-icon {
+        0% { transform: scale(0.95); opacity: 0.4; }
+        100% { transform: scale(1.05); opacity: 0.9; }
+      }
+      .empty-title {
+        font-size: 1.4rem !important;
+        color: var(--text-secondary) !important;
+      }
+      .empty-subtitle {
+        font-size: 0.9rem !important;
+        color: rgba(255, 255, 255, 0.4) !important;
+        margin-top: 6px !important;
       }
 
       /* Ambient Image Glow */
@@ -319,17 +357,28 @@
       .card:hover {
         background: rgba(36, 39, 42, 0.9);
         transform: translateY(-6px);
-        border-color: rgba(29, 185, 84, 0.3);
+        border-color: rgba(29, 185, 84, 0.35);
         box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+      }
+
+      .card-img-wrapper {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
       }
 
       .card img {
         width: 100%;
-        aspect-ratio: 1 / 1;
+        height: 100%;
         object-fit: cover;
-        border-radius: 10px;
-        margin-bottom: 12px;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      .card:hover img {
+        transform: scale(1.06);
       }
 
       .card h3 {
@@ -572,6 +621,7 @@
       </header>
 
       {% if current_track %}
+      <!-- NOW PLAYING (ACTIVE) -->
       <div id="now-playing-capture">
         <div class="badge-container">
           <span class="badge">NOW PLAYING</span>
@@ -608,7 +658,7 @@
               <span class="progress-time">{{ current_track.duration_str }}</span>
             </div>
             <div class="button-group">
-              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く</a>
+              <a href="{{ current_track.url }}" target="_blank">Spotify で聴く ↗</a>
               <button
                 class="copy-btn"
                 onclick="copyToClipboard('{{ current_track.name }}', '{{ current_track.artist }}', '{{ current_track.album }}', '{{ current_track.url }}', this)"
@@ -619,6 +669,22 @@
           </div>
         </div>
       </div>
+      {% else %}
+      <!-- NOW PLAYING (EMPTY / PAUSED STATE) -->
+      <div id="now-playing-capture">
+        <div class="badge-container">
+          <span class="badge badge-paused">PAUSED / IDLE</span>
+        </div>
+        <div class="now-playing-container empty-state-container">
+          <div class="empty-icon-wrapper">
+            <span class="empty-music-icon">🎵</span>
+          </div>
+          <div class="now-playing-info">
+            <h1 class="empty-title">現在再生中の曲はありません</h1>
+            <p class="empty-subtitle">Spotify アプリで楽曲を再生するとリアルタイムでダッシュボードに反映されます。</p>
+          </div>
+        </div>
+      </div>
       {% endif %}
 
       <h2 class="section-title">Recently Played</h2>
@@ -626,13 +692,15 @@
         {% for track in tracks %}
         <div class="card">
           {% if track.image_url %}
-          <img src="{{ track.image_url }}" alt="{{ track.album }}" loading="lazy" />
+          <div class="card-img-wrapper">
+            <img src="{{ track.image_url }}" alt="{{ track.album }}" loading="lazy" />
+          </div>
           {% endif %}
           <h3>{{ track.name }}</h3>
           <p class="album-name">{{ track.album }}</p>
           <p class="artist-name">{{ track.artist }}</p>
           <p class="played-at">🕒 {{ track.played_at }}</p>
-          <a href="{{ track.url }}" target="_blank">Spotify で聴く</a>
+          <a href="{{ track.url }}" target="_blank">Spotify で聴く ↗</a>
           <button
             class="copy-btn"
             onclick="copyToClipboard('{{ track.name }}', '{{ track.artist }}', '{{ track.album }}', '{{ track.url }}', this)"
