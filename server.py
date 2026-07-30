@@ -1,6 +1,8 @@
 import os
 import secrets
 import string
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -54,8 +56,6 @@ class _TTLCache:
 
     def __init__(self, ttl: float):
         self._ttl = ttl
-        self._lock = threading.Lock() if "threading" in globals() else None
-        import threading
         self._lock = threading.Lock()
         self._value = None
         self._expires_at = 0.0
@@ -67,13 +67,11 @@ class _TTLCache:
         return None
 
     def set(self, value: Any) -> None:
-        import time
         with self._lock:
             self._value = value
             self._expires_at = time.monotonic() + self._ttl
 
 
-import time
 _spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
 
 
@@ -177,21 +175,27 @@ def format_history_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def init() -> bool:
-    sp_oauth = create_auth_manager()
-    token = sp_oauth.validate_token(sp_oauth.get_cached_token())
-    return token is not None
+    try:
+        sp_oauth = create_auth_manager()
+        token = sp_oauth.validate_token(sp_oauth.get_cached_token())
+        return token is not None
+    except Exception:
+        return False
 
 
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
-    sp_oauth = create_auth_manager()
-
-    # すでに認証が完了している場合は 403 Forbidden
-    if sp_oauth.validate_token(sp_oauth.get_cached_token()):
-        return (
-            "<h3>🔒 セットアップはすでに完了しています。再設定するには `.spotifycache` ファイルを削除してください。</h3>",
-            403,
-        )
+    sp_oauth = None
+    try:
+        sp_oauth = create_auth_manager()
+        # すでに認証が完了している場合は 403 Forbidden
+        if sp_oauth.validate_token(sp_oauth.get_cached_token()):
+            return (
+                "<h3>🔒 セットアップはすでに完了しています。再設定するには `.spotifycache` ファイルを削除してください。</h3>",
+                403,
+            )
+    except Exception:
+        pass
 
     error = None
     input_pin = request.form.get("pin") or session.get("setup_pin")
@@ -220,7 +224,7 @@ def setup():
         # 段階2: URL の送信とトークン引き換え
         if action == "submit_url" and is_pin_authenticated:
             response_url = request.form.get("response_url")
-            if response_url:
+            if response_url and sp_oauth:
                 try:
                     code = sp_oauth.parse_response_code(response_url.strip())
                     token_info = sp_oauth.get_access_token(code, as_dict=True)
@@ -233,7 +237,7 @@ def setup():
                 except Exception as e:
                     error = f"認証エラー: {e}"
             else:
-                error = "URLを入力してください。"
+                error = "URLを入力するか環境変数を設定してください。"
 
     # PIN 未認証時: 認証リンク (auth_url) は生成せず PIN 入力画面のみ表示
     if not is_pin_authenticated:
@@ -244,7 +248,12 @@ def setup():
         )
 
     # PIN 認証成功済みの場合のみ: Spotify 認可 URL を生成して表示
-    auth_url = sp_oauth.get_authorize_url()
+    try:
+        auth_url = sp_oauth.get_authorize_url() if sp_oauth else "#"
+    except Exception as e:
+        auth_url = "#"
+        error = error or f"Spotify 設定エラー (CLIENT_ID未設定等): {e}"
+
     return render_template(
         "setup.html",
         is_authenticated=True,
@@ -256,22 +265,25 @@ def setup():
 
 @app.route("/callback", methods=["GET"])
 def callback():
-    sp_oauth = create_auth_manager()
-    code = request.args.get("code")
-    if code:
-        try:
+    try:
+        sp_oauth = create_auth_manager()
+        code = request.args.get("code")
+        if code:
             sp_oauth.get_access_token(code, as_dict=False)
             return redirect(url_for("hist"))
-        except Exception as e:
-            return redirect(url_for("setup", error=str(e)))
+    except Exception as e:
+        return redirect(url_for("setup", error=str(e)))
     return redirect(url_for("setup"))
 
 
 @app.route("/", methods=["GET"])
 def hist():
-    sp_oauth = create_auth_manager()
-    token_info = sp_oauth.validate_token(sp_oauth.get_cached_token())
-    if not token_info:
+    try:
+        sp_oauth = create_auth_manager()
+        token_info = sp_oauth.validate_token(sp_oauth.get_cached_token())
+        if not token_info:
+            return redirect(url_for("setup"))
+    except Exception:
         return redirect(url_for("setup"))
 
     cached = _spotify_cache.get()
