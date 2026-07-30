@@ -420,12 +420,7 @@
 
       document.addEventListener('DOMContentLoaded', function initSeekBarTicker() {
         const container = document.getElementById('progress-container');
-        if (!container) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 30000);
-          return;
-        }
+        if (!container) return;
 
         const currentEl = document.getElementById('progress-current-time');
         const fillEl = document.getElementById('progress-bar-fill');
@@ -434,12 +429,7 @@
         const durationMs = parseInt(container.dataset.durationMs || '0', 10);
         const isPlaying = container.dataset.isPlaying === 'true';
 
-        if (!isPlaying || durationMs <= 0) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 30000);
-          return;
-        }
+        if (!isPlaying || durationMs <= 0) return;
 
         const startTime = Date.now();
         let reloadScheduled = false;
