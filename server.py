@@ -53,24 +53,26 @@ SETUP_PIN = _init_setup_pin()
 
 
 class _TTLCache:
-    """インメモリの TTL キャッシュクラス"""
+    """インメモリの TTL キャッシュクラス（取得時刻保持）"""
 
     def __init__(self, ttl: float):
         self._ttl = ttl
         self._lock = threading.Lock()
         self._value = None
+        self._fetched_at = 0.0
         self._expires_at = 0.0
 
-    def get(self) -> Optional[Any]:
+    def get(self) -> Optional[Tuple[Any, float]]:
         with self._lock:
             if self._value is not None and time.monotonic() < self._expires_at:
-                return self._value
+                return self._value, self._fetched_at
         return None
 
     def set(self, value: Any) -> None:
         with self._lock:
             self._value = value
-            self._expires_at = time.monotonic() + self._ttl
+            self._fetched_at = time.monotonic()
+            self._expires_at = self._fetched_at + self._ttl
 
 
 _spotify_cache = _TTLCache(CACHE_TTL_SECONDS)
@@ -312,9 +314,10 @@ def hist():
     except Exception:
         return redirect(url_for("setup"))
 
-    cached = _spotify_cache.get()
-    if cached is not None:
-        current_track_raw, history = cached
+    cached_res = _spotify_cache.get()
+    if cached_res is not None:
+        (current_track_raw, history), fetched_at = cached_res
+        elapsed_sec = max(0.0, time.monotonic() - fetched_at)
     else:
         try:
             current_track_raw, history = fetch_spotify_data()
@@ -324,13 +327,28 @@ def hist():
             status_code = 503 if should_retry_spotify_error(error) else 500
             return f"Spotify API Error: {error}", status_code
         _spotify_cache.set((current_track_raw, history))
+        elapsed_sec = 0.0
 
     current_track = None
     if current_track_raw and current_track_raw.get("is_playing"):
-        progress_ms = current_track_raw.get("progress_ms", 0)
+        raw_progress = current_track_raw.get("progress_ms", 0)
         is_playing = current_track_raw.get("is_playing", True)
+        duration_ms = current_track_raw.get("item", {}).get("duration_ms", 0)
+
+        # キャッシュ期間中も経過時間 (elapsed_sec) を加算してリアルタイム進捗を計算
+        extrapolated_progress = raw_progress + int(elapsed_sec * 1000) if is_playing else raw_progress
+
+        # 楽曲の総時間を超えている場合は最新の API 情報を取得
+        if duration_ms > 0 and extrapolated_progress >= duration_ms:
+            try:
+                current_track_raw, history = fetch_spotify_data()
+                _spotify_cache.set((current_track_raw, history))
+                extrapolated_progress = current_track_raw.get("progress_ms", 0)
+            except Exception:
+                pass
+
         current_track = format_track_item(
-            current_track_raw["item"], progress_ms=progress_ms, is_playing=is_playing
+            current_track_raw["item"], progress_ms=extrapolated_progress, is_playing=is_playing
         )
 
     history_arr = format_history_items(history.get("items", []))
