@@ -26,10 +26,10 @@ SPOTIPY_REDIRECT_URI=https://127.0.0.1/callback
 ```
 
 ### 3. コンテナの起動
-コンテナをバックグラウンドで起動します：
+ghcr.io に公開されたイメージから起動します：
 
 ```bash
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
 ### 4. Web ブラウザでの初回認証（セットアップ）
@@ -54,6 +54,18 @@ docker compose up -d
 4. **「1. Spotify で認証する」** ボタンを押し、Spotify の認可画面で「同意する」をクリックします。
 5. 認可後にブラウザのアドレスバーに表示された URL（例: `https://127.0.0.1/callback?code=...`）をコピーし、セットアップ画面の **「2. リダイレクト URL の貼り付け」** フォームに貼り付けて送信します。
 6. 認証キャッシュ (`.spotifycache`) が保存され、ダッシュボード画面が表示されます！
+
+---
+
+## 🐳 Docker イメージ
+
+- イメージ: `ghcr.io/haya58/spotify_nowplaying:main`
+- ビルド・push は [.github/workflows/build-push-docker-image.yaml](.github/workflows/build-push-docker-image.yaml) で自動化 (single-arch `linux/amd64`、タグはブランチ名・gitタグ・sha)
+- ローカルビルド確認用:
+  ```bash
+  docker build -t ghcr.io/haya58/spotify_nowplaying:test .
+  docker run --rm -p 5000:5000 ghcr.io/haya58/spotify_nowplaying:test
+  ```
 
 ---
 
