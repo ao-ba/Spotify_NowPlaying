@@ -59,12 +59,12 @@ docker compose pull && docker compose up -d
 
 ## 🐳 Docker イメージ
 
-- イメージ: `ghcr.io/haya58/spotify_nowplaying:main`
-- ビルド・push は [.github/workflows/build-push-docker-image.yaml](.github/workflows/build-push-docker-image.yaml) で自動化 (single-arch `linux/amd64`、タグはブランチ名・gitタグ・sha)
+- イメージ: `ghcr.io/ao-ba/spotify_nowplaying:latest`
+- ビルド・push は [.github/workflows/build-push-docker-image.yaml](.github/workflows/build-push-docker-image.yaml) で自動化 (single-arch `linux/amd64`、タグは `latest`、ブランチ名、sha)
 - ローカルビルド確認用:
   ```bash
-  docker build -t ghcr.io/haya58/spotify_nowplaying:test .
-  docker run --rm -p 5000:5000 ghcr.io/haya58/spotify_nowplaying:test
+  docker build -t ghcr.io/ao-ba/spotify_nowplaying:test .
+  docker run --rm -p 5000:5000 ghcr.io/ao-ba/spotify_nowplaying:test
   ```
 
 ---
