@@ -1124,14 +1124,36 @@
         const element = document.getElementById(elementId);
         if (!element) return;
         showToast('Capturing image...');
-        html2canvas(element, {
+
+        const clone = element.cloneNode(true);
+        const isMobile = window.innerWidth <= 680;
+        const padV = isMobile ? '20px' : '28px';
+        const padH = isMobile ? '16px' : '32px';
+
+        clone.style.position = 'absolute';
+        clone.style.top = '-9999px';
+        clone.style.left = '-9999px';
+        clone.style.zIndex = '-99999';
+        clone.style.opacity = '1';
+        clone.style.visibility = 'visible';
+        clone.style.pointerEvents = 'none';
+        clone.style.width = element.offsetWidth + 'px';
+        clone.style.boxSizing = 'content-box';
+        clone.style.margin = '0';
+        clone.style.padding = `${padV} ${padH}`;
+        clone.style.backgroundColor = '#0d0d0e';
+        document.body.appendChild(clone);
+
+        html2canvas(clone, {
           backgroundColor: '#0d0d0e',
           scale: 2,
           useCORS: true,
         }).then((canvas) => {
+          if (document.body.contains(clone)) document.body.removeChild(clone);
           copyCanvasToClipboard(canvas, 'Now Playing image copied!');
         }).catch((err) => {
           console.error(err);
+          if (document.body.contains(clone)) document.body.removeChild(clone);
           showToast('Image generation error.');
         });
       }
