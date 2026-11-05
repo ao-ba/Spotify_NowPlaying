@@ -4,9 +4,10 @@ permissions:
   contents: read
 on:
   push:
+    branches: [ "main" ]
   workflow_dispatch:
 env:
-  REGISTRY_IMAGE: ghcr.io/haya58/spotify_nowplaying
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/spotify_nowplaying
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +22,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=tag
             type=sha
