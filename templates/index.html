@@ -323,6 +323,70 @@
         transform: translateY(-1px);
       }
 
+      /* --- NOW PLAYING QR CODE --- */
+      .now-playing-qr {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        text-decoration: none;
+        transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+        margin-left: 8px;
+        box-sizing: border-box;
+      }
+      .now-playing-qr:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(29, 185, 84, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+      .qr-box {
+        background: #ffffff;
+        padding: 6px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        line-height: 0;
+      }
+      .qr-box canvas,
+      .qr-box img {
+        display: block !important;
+        border-radius: 4px;
+      }
+      .qr-label {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        transition: color 0.2s ease;
+      }
+      .now-playing-qr:hover .qr-label {
+        color: var(--spotify-green);
+      }
+      .qr-label::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--spotify-green);
+        box-shadow: 0 0 6px var(--spotify-green);
+      }
+
       /* --- TAB NAVIGATION & FILTERS --- */
       .tab-nav-container {
         display: flex;
@@ -663,6 +727,29 @@
           white-space: nowrap;
         }
 
+        .now-playing-qr {
+          margin-left: 0;
+          margin-top: 14px;
+          flex-direction: row;
+          gap: 10px;
+          padding: 6px 16px;
+          border-radius: 24px;
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .now-playing-qr .qr-label {
+          margin-top: 0;
+          font-size: 0.74rem;
+        }
+        .now-playing-qr .qr-box {
+          padding: 4px;
+          border-radius: 6px;
+        }
+        .now-playing-qr .qr-box canvas,
+        .now-playing-qr .qr-box img {
+          width: 46px !important;
+          height: 46px !important;
+        }
+
         /* Empty state mobile */
         .empty-state-container {
           padding: 28px 16px;
@@ -743,6 +830,7 @@
       }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
       // オンデマンド＆セッション内メモリキャッシュ
       const _topTracksCache = {};
@@ -1085,6 +1173,26 @@
 
         requestAnimationFrame(update);
       });
+
+      function initQrCode() {
+        const qrEl = document.getElementById('qrcode');
+        if (!qrEl) return;
+        const trackUrl = qrEl.dataset.url;
+        if (!trackUrl || qrEl.hasChildNodes()) return;
+        if (typeof QRCode !== 'undefined') {
+          new QRCode(qrEl, {
+            text: trackUrl,
+            width: 80,
+            height: 80,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', initQrCode);
+      window.addEventListener('load', initQrCode);
     </script>
   </head>
   <body>
@@ -1152,6 +1260,21 @@
               </button>
             </div>
           </div>
+          {% if current_track and current_track.url %}
+          <a
+            href="{{ current_track.url }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="now-playing-qr"
+            id="now-playing-qr"
+            title="Scan with phone or click to open in Spotify"
+          >
+            <div class="qr-box">
+              <div id="qrcode" data-url="{{ current_track.url }}"></div>
+            </div>
+            <span class="qr-label">Scan to Play</span>
+          </a>
+          {% endif %}
         </div>
       </div>
       {% else %}
