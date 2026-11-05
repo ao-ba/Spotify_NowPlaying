@@ -332,10 +332,10 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        padding: 6px 10px;
+        padding: 8px 12px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--card-border);
-        border-radius: 12px;
+        border-radius: 14px;
         text-decoration: none;
         transition: all 0.2s ease;
         margin-left: 8px;
@@ -350,8 +350,8 @@
       }
       .qr-box {
         background: #ffffff;
-        padding: 4px;
-        border-radius: 6px;
+        padding: 5px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -365,17 +365,17 @@
       }
       .qr-box img {
         display: block !important;
-        border-radius: 3px;
-        width: 60px !important;
-        height: 60px !important;
+        border-radius: 4px;
+        width: 82px !important;
+        height: 82px !important;
       }
       .qr-label {
         font-family: 'Outfit', sans-serif;
-        font-size: 0.65rem;
+        font-size: 0.68rem;
         font-weight: 700;
         letter-spacing: 0.06em;
         color: var(--text-secondary);
-        margin-top: 5px;
+        margin-top: 6px;
         text-transform: uppercase;
         display: inline-flex;
         align-items: center;
@@ -421,7 +421,7 @@
         border-radius: 20px;
         padding: 28px 24px 24px 24px;
         text-align: center;
-        max-width: 300px;
+        max-width: 320px;
         width: 100%;
         position: relative;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
@@ -445,7 +445,7 @@
       .modal-qr-box {
         background: #ffffff;
         padding: 10px;
-        border-radius: 12px;
+        border-radius: 14px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -458,8 +458,8 @@
       .modal-qr-box img {
         display: block !important;
         border-radius: 6px;
-        width: 160px !important;
-        height: 160px !important;
+        width: 200px !important;
+        height: 200px !important;
       }
       .modal-track-title {
         font-family: 'Outfit', sans-serif;
@@ -1267,8 +1267,8 @@
           if (trackUrl) {
             new QRCode(qrEl, {
               text: trackUrl,
-              width: 80,
-              height: 80,
+              width: 164,
+              height: 164,
               colorDark: '#000000',
               colorLight: '#ffffff',
               correctLevel: QRCode.CorrectLevel.M,
@@ -1281,8 +1281,8 @@
           if (modalUrl) {
             new QRCode(modalQrEl, {
               text: modalUrl,
-              width: 160,
-              height: 160,
+              width: 240,
+              height: 240,
               colorDark: '#000000',
               colorLight: '#ffffff',
               correctLevel: QRCode.CorrectLevel.M,
