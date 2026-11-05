@@ -1,11 +1,8 @@
 services:
   dashboard:
-    build: .
-    image: ghcr.io/ao-ba/spotify_nowplaying:latest
+    image: ghcr.io/haya58/spotify_nowplaying:main
     container_name: dashboard
     ports:
       - "5000:5000"
     env_file: "./.env"
-    volumes:
-      - .:/app
     restart: always

@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: ghcr.io/ao-ba/spotify_nowplaying:latest
+          image: ghcr.io/haya58/spotify_nowplaying:main
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
